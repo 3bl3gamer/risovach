@@ -1,0 +1,128 @@
+﻿<html>
+<head>
+<title>circle</title>
+<link rel="stylesheet" href="farbtastic.css">
+<script src="jquery-1.6.4.min.js" type="text/javascript"></script>
+<script src="farbtastic.js" type="text/javascript"></script>
+
+<script type="text/javascript" src="util.js"></script>
+<script type="text/javascript" src="color_picker.js"></script>
+<script type="text/javascript" src="history.js"></script>
+<script type="text/javascript" src="image_transformer.js"></script>
+<script type="text/javascript" src="paint.js"></script>
+
+
+<script type="text/javascript">
+
+function log(text) {div_log.innerHTML+=text+"</br>";}
+
+
+/*function handleKeyboard(e) {
+	var e=window.event || e;
+	var k=e.charCode || e.keyCode;
+	switch (k) {
+	case 122:
+		if (mode!=1) break;
+		paint.undo();
+		break;
+	case 121:
+		if (mode!=1) break;
+		paint.redo();
+		break;
+	case 97:
+		if (mode!=0) break;
+		imgTransf.rotate(-0.1);
+		paint.refresh();
+		break;
+	case 100:
+		if (mode!=0) break;
+		imgTransf.rotate(0.1);
+		paint.refresh();
+		break;
+	default:
+		if (k>=48 && k<=57)
+			paint.brushSetAlpha((k-47)*0.1);
+		if (k>=112 && k<=114) {
+			paint.setLayer(k-112);
+			e.preventDefault();
+		}
+	}
+}*/
+
+
+
+
+var canvas,rc;
+var paint;//, imgTransf, mode=0, getPressure=null;
+
+window.onload = function() {
+	canvas = document.getElementById("canvas");
+	mouse_shift=getPos(canvas);
+	//document.onmousemove = handleMouseMove;
+	//canvas.onmousedown = handleMouseDown;
+	//document.onmouseup = handleMouseUp;
+	
+	//canvas.onmousewheel = handleMouseWheel; //window.onmousewheel
+	//when you don't support IE and think cross-browser problems have gone, here comes Firefox >_<
+	//canvas.addEventListener('DOMMouseScroll', handleMouseWheel, false);
+	
+	//document.onkeypress=handleKeyboard;
+	
+	//document.ontouchstart = function(e){ e.preventDefault(); for (var i in e.touches) alert(e.touches[i].pageX);}
+	//document.ontouchmove = function(e){ e.preventDefault(); }
+	
+	rc = canvas.getContext("2d");
+	//я сделаю свой консоль с логированием и эксепшенами
+	try {
+		paint=new Paint(canvas);
+	} catch(e) {log(e);}
+	imgTransf=new ImageTransformer(paint.layer[0],
+	                               "h1ji3-pi-black.jpg", //http://www.raspberrypi.org/wp-content/uploads/2011/11/h1ji3-pi-black.jpg
+	                               function() {paint.refresh();});
+	
+	
+	//создание кнопок
+	for (var i=0;i<paint.layer.length;i++) {
+		var b=document.createElement('button');
+		//вообще, так как-то криво. зато просто и работает
+		paint.layer[i].style.width="128px";
+		paint.layer[i].style.height="64px";
+		b.appendChild(paint.layer[i]); //хейтер прямого доступа? замени на paint.getLayerBuffer(i)
+		b.onclick=(function(i) { return function() {paint.layer_cur=i;} })(i); //если тянет на каноничности, можно paint.setLayer(i);
+		buttons.appendChild(b);
+		buttons.appendChild(document.createElement('br'));
+	}
+	
+	$('#picker').farbtastic(function(color) {paint.brushSetColor(color);});
+}
+
+</script>
+
+
+
+</head>
+<body style="background-color:#101010;">
+<object id="wtPlugin" type="application/x-wacomtabletplugin" WIDTH=1 HEIGHT=1 style="position:absolute; left:100px; top:100px">
+	<!-- <param name="onload" value="pluginLoaded" /> -->
+</object>
+<table>
+	<tr>
+		<td><canvas id="canvas" style="z-index: 2; margin-left:64px; margin-top:32px;
+								   border: 1px solid #000; background-color:white;"
+				width=800 height=400>Обновите браузер</canvas></td>
+		<td><div id="buttons"></div>
+		<button onclick="paint.redoAll(paint.layer_cur);">Magic button</button>
+		<button onclick="paint.merge(1);">Merge</button>
+		<br>
+		<button onclick="paint.toolSet(paint.TOOL_BRUSH);">Brush</button>
+		<button onclick="paint.toolSet(paint.TOOL_ERASER);">Eraser</button>
+		<button onclick="paint.toolSet(paint.TOOL_PICKER);">Picker</button></td>
+		<td>
+		<div id="picker"></div>
+		</td>
+	</tr>
+</table>
+
+<div id="div_log" style="color:white;"></div>
+</body>
+</html>

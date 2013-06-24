@@ -1,0 +1,38 @@
+<html>
+<head>
+<title>Arc</title>
+</head>
+
+<body>
+<canvas id="canvas" style="border: 1px solid #000;" width=128 height=128>Обновите браузер</canvas>
+
+<script type="text/javascript">
+
+function draw(b) {
+	rc = canvas.getContext("2d");
+	rc.save();
+	rc.clearRect(0,0, canvas.width, canvas.height);
+	rc.translate(b*256,0);//0 29 53 74 (29 24 21)//0 26 44 56 (26 18 12)
+	rc.scale(b+1,b+1);
+	rc.shadowBlur=2;
+	rc.shadowOffsetX=canvas.width*3;
+	rc.shadowColor="black";
+	var dx=canvas.width/2, r=canvas.width*0.45;//-rc.shadowBlur;
+	rc.beginPath();
+	rc.arc(dx-rc.shadowOffsetX,dx, r, 0,3.1415927*2, false);
+	rc.fill();
+	rc.restore()
+}
+window.onload = function() {
+	draw(8);
+}
+
+//document.removeEventListener('mouseup', f, false);
+document.addEventListener('mousemove', function(e){
+	draw(e.pageX/100-1);
+}, false);
+
+</script>
+
+</body>
+</html>
