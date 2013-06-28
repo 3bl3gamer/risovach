@@ -77,7 +77,7 @@ window.onload = function() {
 		paint=new Paint(canvas);
 	} catch(e) {log(e);}
 	imgTransf=new ImageTransformer(paint.layer[0],
-	                               "h1ji3-pi-black.jpg", //http://www.raspberrypi.org/wp-content/uploads/2011/11/h1ji3-pi-black.jpg
+	                               "h1ji3-pi-black.jpg_", //http://www.raspberrypi.org/wp-content/uploads/2011/11/h1ji3-pi-black.jpg
 	                               function() {paint.refresh();});
 	
 	
@@ -93,7 +93,9 @@ window.onload = function() {
 		buttons.appendChild(document.createElement('br'));
 	}
 	
-	$('#picker').farbtastic(function(color) {paint.brushSetColor(color);});
+	var picker = $.farbtastic("#picker", function(color) {paint.brushSetColor(color);}).setRGB([1,1,1]);
+	picker.setColor("#000000");
+	paint.onColorPick = function(c) {picker.setRGB([c[0]/255, c[1]/255, c[2]/255])}
 }
 
 </script>

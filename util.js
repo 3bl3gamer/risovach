@@ -7,6 +7,15 @@ function getPos(obj) {
 		} while (obj = obj.offsetParent);
 	return [curleft,curtop];
 }
+function getPosScroll(obj) {
+	var curleft = curtop = 0;
+	if (obj.offsetParent)
+		do {
+			curleft += obj.offsetLeft;
+			curtop += obj.offsetTop;
+		} while (obj = obj.offsetParent);
+	return [curleft-document.body.scrollLeft, curtop-document.body.scrollTop];
+}
 
 function col2rgb(str) {
 	rgb=[];

@@ -22,8 +22,8 @@ function Rect() {
 		this.y1=-Infinity;//   *----(x1,y1)
 	}
 	this.reset=function(x,y) {
-		if (x===undefined || y===undefined) {
-			this.clear();
+		if (x===undefined || y===undefined) {//TODO: remove
+			alert("Rect.reset without params");//this.clear();
 		} else {
 			this.x0=x;
 			this.x1=x;
@@ -32,8 +32,8 @@ function Rect() {
 		}
 	}
 	this.reset_r=function(x,y,r) {
-		if (x===undefined || y===undefined || r===undefined) {
-			this.clear();
+		if (x===undefined || y===undefined || r===undefined) {//TODO: remove
+			alert("Rect.reset_r without params");//this.clear();
 		} else {
 			this.x0=x-r;
 			this.x1=x+r;
@@ -53,7 +53,8 @@ function Rect() {
 		if (this.y0>y-r) this.y0=y-r;
 		if (this.y1<y+r) this.y1=y+r;
 	}
-	this.reset();
+	//this.reset();
+	this.clear();
 	//if (arr)
 	//	for (var i=0;i<arr.length;i+=2)
 	//		this.extend(arr[i],arr[i+1]);
@@ -76,7 +77,7 @@ function Paint(canvas, wacom_plugin) {
 	if (wacom_plugin && (penAPI = wacom_plugin.penAPI)) //нашли
 		p.getPressure=function() {if (penAPI.pointerType!=0) return penAPI.pressure; else return 1.0;}
 	else //не нашли
-		p.getPressure=function() {return (1.0+Math.sin(new Date().getTime()*0.01))*0.5;}
+		p.getPressure=function() {return Math.pow(Math.min(1, (new Date().getTime()-p.event_start_time)/100), 0.5)+0.05;}
 	
 	
 	//просто линия между точками
@@ -366,9 +367,10 @@ function Paint(canvas, wacom_plugin) {
 	p.params=[];//параметры [слой,размер,блюр,шаг,цвет,форма]
 	p.frameDelta=16;//ограничение кол-ва обновлений канваса в секунду (FPS=1000/frameDelta)
 	p.lastFrameTime=0;//время последнего обновления канваса
+	
 	//начало рисования штриха
 	p.brushStart=function(x,y,pressure) {
-		if (this.isDrawing) return;
+		if (this.isDrawing) return false;
 		
 		if (this.historyEnabled) {
 			this.params=this.getParams();
@@ -390,12 +392,15 @@ function Paint(canvas, wacom_plugin) {
 		this.lastPressure=pressure;
 		
 		this.getLayerBuffer().rc.globalCompositeOperation=this.brushMode;
+		
+		return true;
 	}
 	//отмена текущего штриха (например, при касании вторым пальцем)
 	p.brushCancel=function() {
-		if (!this.isDrawing) return;
+		if (!this.isDrawing) return false;
 		this.buffer.rc.clearRect(0,0,this.buffer.width,this.buffer.height);
 		this.isDrawing=false;
+		return true;
 	}
 	//шаг рисования
 	p.brushMove=function(x,y,pressure) {
@@ -438,10 +443,12 @@ function Paint(canvas, wacom_plugin) {
 		this.lastX=x;
 		this.lastY=y;
 		this.lastPressure=pressure;
+		
+		return this.isDrawing;
 	}
 	//p.brushMoveOnEvent=function(e) {e=p.eventGetCoords(e); p.brushMove(e[0], e[1], getPressure());}
 	p.brushEnd=function() {
-		if (!this.isDrawing) return;
+		if (!this.isDrawing) return false;
 		
 		if (this.historyEnabled)
 			this.history.addPath(this.layer,[this.getParams(),this.path],this.brushGetTotalRadius());
@@ -452,13 +459,14 @@ function Paint(canvas, wacom_plugin) {
 		//document.removeEventListener('mousemove', this.brushMoveOnEvent);
 		
 		//for speed comparison
-		var dt=new Date().getTime()-this.lastFrameTime;
+		/*var dt=new Date().getTime()-this.lastFrameTime;
 		var l=0;
 		for (var i=3;i<this.path.length;i+=3) {
 			var dx=this.path[i]-this.path[i-3], dy=this.path[i+1]-this.path[i-2];
 			l+=Math.sqrt(dx*dx+dy*dy);
 		}
-		return [l/dt,this.path.length/dt];
+		return [l/dt,this.path.length/dt];*/
+		return true;
 	}
 	
 	
@@ -481,21 +489,30 @@ function Paint(canvas, wacom_plugin) {
 		this.onColorPick([data[0],data[1],data[2],data[3]]);
 	}
 	p.pickerStart=function(x,y) {
+		if (this.isDrawing) return false;
 		this.isDrawing=true;
 		this.pickerPick(x,y);
+		return true;
 	}
 	p.pickerMove=function(x,y) {
-		if (!this.isDrawing) return;
+		if (!this.isDrawing) return false;
 		this.pickerPick(x,y);
+		return true;
 	}
 	p.pickerEnd=function() {
-		this.isDrawing=false;
+		if (this.isDrawing) {
+			this.isDrawing=false;
+			return true;
+		}
+		return false;
 	}
 	
 	//события управления
-	var wrap = function(type, func, cancel_func, coords, pressure, prevent) {
+	p.event_start_time = new Date().getTime(); //время начала события. пригодится
+	function wrap(type, func, cancel_func, coords, pressure, prevent, update_time) {
 		return new Function("p",
 			 "return function(e) {"
+			+(update_time?"p.event_start_time = new Date().getTime();":"")
 			+(type==0
 				?(pressure?"var pr=p.getPressure();":"")
 				+(coords?"var t=e;":"")
@@ -504,25 +521,28 @@ function Paint(canvas, wacom_plugin) {
 				+(coords|pressure?"var t=e.touches[0];":"")
 				+(pressure?"var pr=t.webkitForce; pr=pr===undefined?1:pr>1?1:pr<0?0:pr;":"")
 			 )
-			+(coords?"var x=t.clientX-p.canvas_pos[0], y=t.clientY-p.canvas_pos[1];":"")
-			+"p."+func+"("+(coords?pressure?"x,y,pr":"x,y":pressure?"pr":"")+");"
-			+(prevent?"e.preventDefault();":"")
+			+(coords?"var x=t.clientX-p.canvas_pos[0]+document.body.scrollLeft;"
+			+        "var y=t.clientY-p.canvas_pos[1]+document.body.scrollTop;":"")
+			//+"p."+func+"("+(coords?pressure?"x,y,pr":"x,y":pressure?"pr":"")+");"
+			//+(prevent?"e.preventDefault();":"")
+			+"if (p."+func+"("+(coords?pressure?"x,y,pr":"x,y":pressure?"pr":"")+"))"
+			+" e.preventDefault();"
 			+"}"
 		)(p);
 	}
 	
-	p.brushEvents ={'mousedown': [ canvas,   wrap(0,"brushStart","brushCancel", true,true,true) ],
+	p.brushEvents ={'mousedown': [ canvas,   wrap(0,"brushStart","brushCancel", true,true,true,true) ],
 	                'mousemove': [ document, wrap(0,"brushMove", "brushCancel", true,true) ],
 	                'mouseup':   [ document, wrap(0,"brushEnd",  "brushCancel") ],
-	                'touchstart': [ canvas,   wrap(1,"brushStart","brushCancel", true,true,true) ],
+	                'touchstart': [ canvas,   wrap(1,"brushStart","brushCancel", true,true,true,true) ],
 	                'touchmove':  [ document, wrap(1,"brushMove", "brushCancel", true,true) ],
 	                'touchend':   [ document, wrap(1,"brushEnd",  "brushCancel")],
-	                'mousewheel':     [ canvas, function(e) {p.brushSizeAdd( e.wheelDelta/120);}],
-	                'DOMMouseScroll': [ canvas, function(e) {p.brushSizeAdd(-e.detail        );}] };//hello FF!
-	p.pickerEvents={'mousedown': [ canvas,   wrap(0,"pickerStart","", true,false,true)],
+	                'mousewheel':     [ canvas, function(e) {p.brushSizeAdd( e.wheelDelta/120); e.preventDefault();}],
+	                'DOMMouseScroll': [ canvas, function(e) {p.brushSizeAdd(-e.detail        ); e.preventDefault();}]};//hello FF!
+	p.pickerEvents={'mousedown': [ canvas,   wrap(0,"pickerStart","", true,false,true,true)],
 	                'mousemove': [ document, wrap(0,"pickerMove", "", true) ],
 	                'mouseup':   [ document, wrap(0,"pickerEnd",  "") ],
-	                'touchstart': [ canvas,   wrap(1,"pickerStart","", true,false,true)],
+	                'touchstart': [ canvas,   wrap(1,"pickerStart","", true,false,true,true)],
 	                'touchmove':  [ document, wrap(1,"pickerMove", "", true) ],
 	                'touchend':   [ document, wrap(1,"pickerEnd",  "") ]};
 	
