@@ -21,20 +21,11 @@ function ColorPicker(host) {
 	//s.border = "1px solid";
 	s.cursor = "crosshair";
 	
-	/*var hover = document.createElement("div");
-	s = hover.style;
-	s.position = "absolute";
-	s.width = s.height = "100%";
-	//s.background = "rgba(0,0,0,0.5)"
-	s.zIndex = 4;
-	host.appendChild(hover);*/
-	
 	var wheel = new Image();
 	wheel.src = "wheel.png";
 	s = wheel.style;
 	s.position = "relative";
 	wheel.width = wheel.height = 195;
-	//s.zIndex = 1;
 	host.appendChild(wheel);
 	
 	var color = document.createElement("div");
@@ -49,7 +40,6 @@ function ColorPicker(host) {
 	s = rect.style;
 	s.position = "relative";
 	rect.width = rect.height = 101;
-	//s.zIndex = 2;
 	color.appendChild(rect);
 	
 	function mm(parent) { //make marker
@@ -58,7 +48,6 @@ function ColorPicker(host) {
 		s = m.style;
 		s.position = "absolute";
 		s.margin = "-8px";
-		//s.zIndex = 3;
 		parent.appendChild(m);
 		return m;
 	}
@@ -76,7 +65,6 @@ function ColorPicker(host) {
 		        hue2RGB(m1, m2, h>P3 ? h-P3 : h-P3+1)];
 	}
 	function hue2RGB(m1, m2, h) {
-		//h = (h < 0) ? h + 1 : ((h > 1) ? h - 1 : h);
 		if (h * 6 < 1) return m1 + (m2 - m1) * h * 6;
 		if (h * 2 < 1) return m2;
 		if (h * 3 < 2) return m1 + (m2 - m1) * (P6 - h) * 6;
@@ -232,48 +220,6 @@ function ColorPicker(host) {
 	}
 	host.onmousedown = makeStartFunc("mousemove", "mouseup", false);
 	host.ontouchstart = makeStartFunc("touchmove", "touchend", true);
-	/*host.onmousedown = function(e) {
-		updateMetrics();
-		var dx = e.pageX - wheel_x - wheel_w2;
-		var dy = e.pageY - wheel_y - wheel_w2;
-		if (Math.abs(dx) < rect_w2 && Math.abs(dy) < rect_w2) {
-			document.addEventListener("mousemove", rect_on_mouse_move, false);
-			document.addEventListener("mouseup", rect_on_mouse_up, false);
-			rect_process(e.pageX, e.pageY);
-		} else {
-			document.addEventListener("mousemove", wheel_on_mouse_move, false);
-			document.addEventListener("mouseup", wheel_on_mouse_up, false);
-			wheel_process(e.pageX, e.pageY);
-		}
-		e.preventDefault();
-	}
-	host.ontouchstart = function(e) {
-		updateMetrics();
-		var dx = e.pageX - wheel_x - wheel_w2;
-		var dy = e.pageY - wheel_y - wheel_w2;
-	}
-	
-	function wheel_on_mouse_move(e) {
-		wheel_process(e.pageX, e.pageY);
-		e.preventDefault();
-	}
-	function rect_on_mouse_move(e) {
-		rect_process(e.pageX, e.pageY);
-		e.preventDefault();
-	}
-	
-	function wheel_on_mouse_up(e) {
-		document.removeEventListener("mousemove", wheel_on_mouse_move, false);
-		document.removeEventListener("mouseup", wheel_on_mouse_up, false);
-		e.preventDefault();
-		if (p.onfinalchange) p.onfinalchange();
-	}
-	function rect_on_mouse_up(e) {
-		document.removeEventListener("mousemove", rect_on_mouse_move, false);
-		document.removeEventListener("mouseup", rect_on_mouse_up, false);
-		e.preventDefault();
-		if (p.onfinalchange) p.onfinalchange();
-	}*/
 	
 	this.setRGB(0,1,0);
 }

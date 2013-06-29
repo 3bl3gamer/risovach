@@ -22,24 +22,16 @@ function Rect() {
 		this.y1=-Infinity;//   *----(x1,y1)
 	}
 	this.reset=function(x,y) {
-		if (x===undefined || y===undefined) {//TODO: remove
-			alert("Rect.reset without params");//this.clear();
-		} else {
-			this.x0=x;
-			this.x1=x;
-			this.y0=y;
-			this.y1=y;
-		}
+		this.x0=x;
+		this.x1=x;
+		this.y0=y;
+		this.y1=y;
 	}
 	this.reset_r=function(x,y,r) {
-		if (x===undefined || y===undefined || r===undefined) {//TODO: remove
-			alert("Rect.reset_r without params");//this.clear();
-		} else {
-			this.x0=x-r;
-			this.x1=x+r;
-			this.y0=y-r;
-			this.y1=y+r;
-		}
+		this.x0=x-r;
+		this.x1=x+r;
+		this.y0=y-r;
+		this.y1=y+r;
 	}
 	this.extend=function(x,y) {
 		if (this.x0>x) this.x0=x;
@@ -53,7 +45,7 @@ function Rect() {
 		if (this.y0>y-r) this.y0=y-r;
 		if (this.y1<y+r) this.y1=y+r;
 	}
-	//this.reset();
+	
 	this.clear();
 	//if (arr)
 	//	for (var i=0;i<arr.length;i+=2)
@@ -115,7 +107,6 @@ function Paint(canvas, wacom_plugin) {
 	p.brushStep=2;
 	p.brushBuffer=createBuffer(p.brushSizeMax*2+4);
 	//p.brushSpriteBlurStretch=1.25;//на сколько увеличивается bounding box кисти при увеличении блюра на 1 (с запасом)
-	//p.brushSprite=null;
 	p.brushSpriteSizeStep=2;//2->   1,2,  4,      8,    16
 	p.brushSprite=[];       //2-> 1,1,2,4,4,8,8,8,8,...
 	//полный радиус кисти. по сути - ребро bounding box'а пополам
@@ -168,25 +159,6 @@ function Paint(canvas, wacom_plugin) {
 			log(i+": "+(this.brushSprite[i]?this.brushSprite[i].cur_size:-1));
 		}
 		
-		/*for (var size=1,prev_size=-1; size<this.brushSizeMax+0.01; size*=this.brushSpriteSizeStep) {
-			var dx=this.brushGetTotalRadius(size);
-			var buf=createBuffer(dx*2);
-			var brc=buf.rc;
-			//brc.fillRect(0,0,buf.width,buf.height);//brc.clearRect(0,0,buf.width,buf.height); //TODO: mb remove
-			brc.shadowBlur=this.brushBlur*size;
-			brc.shadowOffsetX=dx*3;
-			brc.shadowColor=this.brushColor[0];
-			
-			brc.beginPath();
-			brc.arc(dx-brc.shadowOffsetX,dx, size, 0,3.1415927*2, false);
-			brc.fill();
-			//brc.strokeRect(0,0,buf.width,buf.height);
-			buf.cur_width=dx*2; //ширина для текущего содержимого
-			buf.cur_size=size; //радиус текущего содержимого
-			for (var i=prev_size+1; i<=size; i++)
-				this.brushSprite[i]=buf;
-			prev_size=size;
-		}*/
 		log("Sprite updated");
 	}
 	//меняет силу разблюра
@@ -271,9 +243,6 @@ function Paint(canvas, wacom_plugin) {
 	p.brushDot=function(x,y,pressure) {
 		var rc=this.buffer.rc;
 		rc.globalAlpha=this.brushColor[1];
-//		var d=this.brushGetTotalRadius(), dr=d*pressure;
-//		var d2=d*2, d2r=d2*pressure;
-//		rc.drawImage(this.brushSprite[2], 0,0,d2,d2, x-dr,y-dr,d2r,d2r);
 		var size=this.brushSize*pressure;
 		var buf=this.brushSprite[size<<0];
 		var src_w=buf.width, dest_w=src_w*size/buf.cur_size;
@@ -456,7 +425,6 @@ function Paint(canvas, wacom_plugin) {
 		this.getLayerBuffer().rc.drawImage(this.buffer,0,0);//TODO: draw only changed
 		this.buffer.rc.clearRect(0,0,this.buffer.width,this.buffer.height);
 		this.isDrawing=false;
-		//document.removeEventListener('mousemove', this.brushMoveOnEvent);
 		
 		//for speed comparison
 		/*var dt=new Date().getTime()-this.lastFrameTime;

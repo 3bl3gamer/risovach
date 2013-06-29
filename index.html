@@ -17,59 +17,12 @@
 function log(text) {div_log.innerHTML+=text+"</br>";}
 
 
-/*function handleKeyboard(e) {
-	var e=window.event || e;
-	var k=e.charCode || e.keyCode;
-	switch (k) {
-	case 122:
-		if (mode!=1) break;
-		paint.undo();
-		break;
-	case 121:
-		if (mode!=1) break;
-		paint.redo();
-		break;
-	case 97:
-		if (mode!=0) break;
-		imgTransf.rotate(-0.1);
-		paint.refresh();
-		break;
-	case 100:
-		if (mode!=0) break;
-		imgTransf.rotate(0.1);
-		paint.refresh();
-		break;
-	default:
-		if (k>=48 && k<=57)
-			paint.brushSetAlpha((k-47)*0.1);
-		if (k>=112 && k<=114) {
-			paint.setLayer(k-112);
-			e.preventDefault();
-		}
-	}
-}*/
-
-
-
-
 var canvas,rc;
 var paint;//, imgTransf, mode=0, getPressure=null;
 
 window.onload = function() {
 	canvas = document.getElementById("canvas");
 	mouse_shift=getPos(canvas);
-	//document.onmousemove = handleMouseMove;
-	//canvas.onmousedown = handleMouseDown;
-	//document.onmouseup = handleMouseUp;
-	
-	//canvas.onmousewheel = handleMouseWheel; //window.onmousewheel
-	//when you don't support IE and think cross-browser problems have gone, here comes Firefox >_<
-	//canvas.addEventListener('DOMMouseScroll', handleMouseWheel, false);
-	
-	//document.onkeypress=handleKeyboard;
-	
-	//document.ontouchstart = function(e){ e.preventDefault(); for (var i in e.touches) alert(e.touches[i].pageX);}
-	//document.ontouchmove = function(e){ e.preventDefault(); }
 	
 	rc = canvas.getContext("2d");
 	//я сделаю свой консоль с логированием и эксепшенами
@@ -110,7 +63,7 @@ window.onload = function() {
 <table>
 	<tr>
 		<td><canvas id="canvas" style="z-index: 2; margin-left:64px; margin-top:32px;
-								   border: 1px solid #000; background-color:white;"
+				                       border: 1px solid #000; background-color:white;"
 				width=800 height=400>Обновите браузер</canvas></td>
 		<td><div id="buttons"></div>
 		<button onclick="paint.redoAll(paint.layer_cur);">Magic button</button>
