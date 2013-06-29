@@ -140,6 +140,11 @@ function ColorPicker(host) {
 		rect_x = wheel_x+color.offsetTop;
 		rect_y = wheel_y+color.offsetLeft;
 	}
+	function isEventOverRect(e) {
+		var dx = e.pageX - wheel_x - wheel_w2;
+		var dy = e.pageY - wheel_y - wheel_w2;
+		return Math.abs(dx) < rect_w2 && Math.abs(dy) < rect_w2;
+	}
 	
 	function updateAll() {
 		updateMetrics();
@@ -156,7 +161,7 @@ function ColorPicker(host) {
 	}
 	
 	var hue=0, sat=0, lum=0;
-	function wheel_process(pageX, pageY) {
+	function wheelProcess(pageX, pageY) {
 		var dx = pageX-wheel_x-wheel_w2;
 		var dy = pageY-wheel_y-wheel_w2;
 		var len = Math.sqrt(dx*dx+dy*dy);
@@ -169,7 +174,7 @@ function ColorPicker(host) {
 		color.style.background = RGBa2HTML(HSL2RGB(hue,1,0.5));
 		if (p.onchange) p.onchange();
 	}
-	function rect_process(pageX, pageY) {
+	function rectProcess(pageX, pageY) {
 		var dx = toRange(0, pageX-rect_x, rect_w);
 		var dy = toRange(0, pageY-rect_y, rect_w);
 		sat = 1-dx/rect_w;
@@ -178,7 +183,56 @@ function ColorPicker(host) {
 		if (p.onchange) p.onchange();
 	}
 	
-	host.onmousedown = function(e) {
+	function makeStartFunc(move_event, end_event, is_touch) {
+		var moveFuncGenerator = new Function("extractedCoordsHandler",
+			"return function(e) {\
+				e.preventDefault();"+
+				(is_touch?"e = e.touches[0];":"")+
+				"extractedCoordsHandler(e.pageX, e.pageY);\
+			}"
+		);
+		var rect_on_move  = moveFuncGenerator(rectProcess);
+		var wheel_on_move = moveFuncGenerator(wheelProcess);
+		
+		var endFuncGenerator = new Function("picker", "moveHandler",
+			"return function(e) {\
+				e.preventDefault();"+
+				(is_touch?"if (e.touches.length != 0) return;":"")+
+				"document.removeEventListener(\""+move_event+"\", moveHandler, false);\
+				 document.removeEventListener(\""+end_event+"\",  arguments.callee,  false);\
+				if (picker.onfinalchange) picker.onfinalchange();\
+			}"
+		);
+		var rect_on_end  = endFuncGenerator(p, rect_on_move);
+		var wheel_on_end = endFuncGenerator(p, wheel_on_move);
+		
+		return new Function("updateMetrics", "isEventOverRect",
+		                    "rectMoveHandler",  "rectEndHandler",
+		                    "wheelMoveHandler", "wheelEndHandler",
+		                    "rectProcess", "wheelProcess",
+			"return function(e) {\
+				e.preventDefault();"+
+				(is_touch?"if (e.touches.length > 1) return;\
+				           e = e.touches[0];":"")+
+				"updateMetrics();\
+				if (isEventOverRect(e)) {\
+					document.addEventListener(\""+move_event+"\", rectMoveHandler, false);\
+					document.addEventListener(\""+end_event+"\",  rectEndHandler,  false);\
+					rectProcess(e.pageX, e.pageY);\
+				} else {\
+					document.addEventListener(\""+move_event+"\", wheelMoveHandler, false);\
+					document.addEventListener(\""+end_event+"\",  wheelEndHandler, false);\
+					wheelProcess(e.pageX, e.pageY);\
+				}\
+			}"
+		)(updateMetrics, isEventOverRect,
+		  rect_on_move,  rect_on_end,
+		  wheel_on_move, wheel_on_end,
+		  rectProcess,   wheelProcess);
+	}
+	host.onmousedown = makeStartFunc("mousemove", "mouseup", false);
+	host.ontouchstart = makeStartFunc("touchmove", "touchend", true);
+	/*host.onmousedown = function(e) {
 		updateMetrics();
 		var dx = e.pageX - wheel_x - wheel_w2;
 		var dy = e.pageY - wheel_y - wheel_w2;
@@ -193,6 +247,12 @@ function ColorPicker(host) {
 		}
 		e.preventDefault();
 	}
+	host.ontouchstart = function(e) {
+		updateMetrics();
+		var dx = e.pageX - wheel_x - wheel_w2;
+		var dy = e.pageY - wheel_y - wheel_w2;
+	}
+	
 	function wheel_on_mouse_move(e) {
 		wheel_process(e.pageX, e.pageY);
 		e.preventDefault();
@@ -201,6 +261,7 @@ function ColorPicker(host) {
 		rect_process(e.pageX, e.pageY);
 		e.preventDefault();
 	}
+	
 	function wheel_on_mouse_up(e) {
 		document.removeEventListener("mousemove", wheel_on_mouse_move, false);
 		document.removeEventListener("mouseup", wheel_on_mouse_up, false);
@@ -212,7 +273,7 @@ function ColorPicker(host) {
 		document.removeEventListener("mouseup", rect_on_mouse_up, false);
 		e.preventDefault();
 		if (p.onfinalchange) p.onfinalchange();
-	}
+	}*/
 	
 	this.setRGB(0,1,0);
 }
