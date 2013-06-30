@@ -274,12 +274,12 @@ function Paint(canvas, wacom_plugin) {
 		var obj = this.layer_obj[this.layer_cur];
 		if (obj !== undefined) {
 			this.toolSet(p.TOOL_BRUSH);
-			obj.disconnect();
+			obj.disconnect(canvas);
 		}
 		obj = this.layer_obj[id];
 		if (obj !== undefined) {
 			this.toolDisconnect();
-			obj.connect();
+			obj.connect(canvas);
 		}
 		
 		this.layer_cur = id;

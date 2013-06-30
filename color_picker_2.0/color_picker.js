@@ -55,7 +55,7 @@ function ColorPicker(host) {
 	wheel_marker = mm(host);
 	rect_marker = mm(color);
 	
-	//финкции для конвертирования цветов
+	//функции для конвертирования цветов
 	var P3 = 0.33333333, P6 = 1-P3;
 	function HSL2RGB(h, s, l) {
 		var m1, m2;

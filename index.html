@@ -23,9 +23,9 @@ window.onload = function() {
 	try {
 		paint = new Paint(canvas);
 	} catch(e) {log(e);}
-	var img_transf = new ImageTransformer(paint, 0,
-	                                     "h1ji3-pi-black.jpg", //http://www.raspberrypi.org/wp-content/uploads/2011/11/h1ji3-pi-black.jpg
-	                                     function() {paint.refresh();});
+	var img_transf = new ImageTransformer(
+		paint, 0, /*server data from*/"h1ji3-pi-black.jpg"/*server data to*/, //http://www.raspberrypi.org/wp-content/uploads/2011/11/h1ji3-pi-black.jpg
+		function() {paint.refresh();});
 	paint.setLayerObj(0, img_transf);
 	
 	
@@ -46,6 +46,18 @@ window.onload = function() {
 	paint.onColorPick = function(c) {picker.setRGB([c[0]/255, c[1]/255, c[2]/255])}
 }
 
+function send() {
+	var xhr = new XMLHttpRequest();
+	xhr.open('POST', "", true);
+	xhr.onreadystatechange = function() {
+		if (xhr.readyState != 4) return;
+		alert(xhr.responseText);
+		if (xhr.status == 200) alert("Щас перезагружусь");
+		window.location.reload()
+	}
+	xhr.send(canvas.toDataURL());
+}
+
 </script>
 
 
@@ -58,7 +70,7 @@ window.onload = function() {
 <table>
 	<tr>
 		<td><canvas id="canvas" style="z-index: 2; margin-left:64px; margin-top:32px;
-				                       border: 1px solid #000; background-color:white;"
+				                       border: 1px solid #000; background:url(back.png);"
 				width=800 height=400>Обновите браузер</canvas></td>
 		<td><div id="buttons"></div>
 		<button onclick="paint.redoAll(paint.layer_cur);">Redo all</button>
@@ -66,7 +78,8 @@ window.onload = function() {
 		<br>
 		<button onclick="paint.toolSet(paint.TOOL_BRUSH);">Brush</button>
 		<button onclick="paint.toolSet(paint.TOOL_ERASER);">Eraser</button>
-		<button onclick="paint.toolSet(paint.TOOL_PICKER);">Picker</button></td>
+		<button onclick="paint.toolSet(paint.TOOL_PICKER);">Picker</button>
+		<button onclick="send()">Send</button></td>
 		<td>
 		<div id="picker"></div>
 		</td>

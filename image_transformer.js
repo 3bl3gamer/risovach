@@ -111,6 +111,11 @@ function ImageTransformer(paint, buffer_id, url, onload) {
 		var p = sprite.getPoints();
 		for (var i=0; i<4; i++)
 			circleFill(p[i][0],p[i][1],3);
+		rc.beginPath();
+		rc.moveTo(p[3][0],p[3][1]);
+		for (var i=0; i<4; i++)
+			rc.lineTo(p[i][0],p[i][1]);
+		rc.stroke();
 		
 		if (event == EVENT_MOVE) {
 			if (grab_i != -1) { //перетаскивается точка
@@ -165,9 +170,9 @@ function ImageTransformer(paint, buffer_id, url, onload) {
 		img.onload=function() {
 			sprite.xo=this.width*0.5;
 			sprite.yo=this.height*0.5;
-			sprite.xscale=0.25;
-			sprite.yscale=0.25;
-			sprite.rotation=0.1;
+			sprite.xscale=0.75;
+			sprite.yscale=0.75;
+			sprite.rotation=0;
 			draw();//рисуем загруженную на канвас
 			onload();//сигнализируем об этом
 		}
@@ -205,13 +210,13 @@ function ImageTransformer(paint, buffer_id, url, onload) {
 		e.preventDefault();
 	}
 	
-	this.connect = function() {
-		document.addEventListener("mousedown", grab, false);
+	this.connect = function(canvas) {
+		canvas.addEventListener("mousedown", grab, false);
 		document.addEventListener("mousemove", move, false);
 		document.addEventListener("mouseup",   drop, false);
 	}
-	this.disconnect = function() {
-		document.removeEventListener("mousedown", grab, false);
+	this.disconnect = function(canvas) {
+		canvas.removeEventListener("mousedown", grab, false);
 		document.removeEventListener("mousemove", move, false);
 		document.removeEventListener("mouseup",   drop, false);
 	}
