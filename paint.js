@@ -256,6 +256,7 @@ function Paint(canvas, wacom_plugin) {
 	
 	//параметры и методы слоёв
 	p.layer=[];//массив слоёв (объектов canvas)
+	p.layer_obj=[];//некий привязанный к слою объект
 	p.layer_numb=4;//количество слоёв
 	for (var i=0;i<p.layer_numb;i++)//каждому слою по буфферу
 		p.layer.push(createBuffer(p.width,p.height));
@@ -265,10 +266,26 @@ function Paint(canvas, wacom_plugin) {
 		//if (id<0 || id>=this.layer_numb) return null;
 		return this.layer[id];
 	}
-	p.setLayer=function(id) {//переключается на слой, устанавливает ему параметры
-		if (id>=this.layer_numb) id=this.layer_numb-1;
-		if (id<0) id=0;
-		this.layer_cur=id;
+	p.setLayer = function(id) {//переключается на слой, устанавливает ему параметры
+		if (id >= this.layer_numb) id = this.layer_numb-1;
+		if (id < 0) id = 0;
+		if (id == this.layer_cur) return;
+		
+		var obj = this.layer_obj[this.layer_cur];
+		if (obj !== undefined) {
+			this.toolSet(p.TOOL_BRUSH);
+			obj.disconnect();
+		}
+		obj = this.layer_obj[id];
+		if (obj !== undefined) {
+			this.toolDisconnect();
+			obj.connect();
+		}
+		
+		this.layer_cur = id;
+	}
+	p.setLayerObj = function(id, obj) {
+		this.layer_obj[id] = obj;
 	}
 	
 	p.autoUpdate=true;//автоматическая перерисовка при рисовании чего-то (отключается при восстановлении из истории)
@@ -331,7 +348,7 @@ function Paint(canvas, wacom_plugin) {
 	p.lastY=0;
 	p.lastPressure=1;
 	p.refreshRect=new Rect();
-	p.isDrawing=false;//идёт ли сейчас рисование}
+	p.isDrawing=false;//идёт ли сейчас рисование
 	p.path=[];//путь (или полоса). массив вида [x0,y0,pressure0, x1,y1,pressure1, ...]
 	p.params=[];//параметры [слой,размер,блюр,шаг,цвет,форма]
 	p.frameDelta=16;//ограничение кол-ва обновлений канваса в секунду (FPS=1000/frameDelta)
@@ -547,7 +564,7 @@ function Paint(canvas, wacom_plugin) {
 	
 	//устанавливает инстумент
 	p.toolSet = function(tool) {
-		if (!(tool in this.tools)) return;
+		if (!(tool in this.tools)) return;//TODO: неправильная проверка. либо заменить [] на {}, либо проверять нормально
 		
 		var group = this.tools[tool][0];
 		if (group != this.tools_cur_group) { //группа поменялась? перключаем обработчики

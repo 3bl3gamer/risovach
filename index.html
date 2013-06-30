@@ -16,32 +16,27 @@
 
 function log(text) {div_log.innerHTML+=text+"</br>";}
 
-
-var canvas,rc;
-var paint;//, imgTransf, mode=0, getPressure=null;
-
+var paint;
 window.onload = function() {
-	canvas = document.getElementById("canvas");
-	mouse_shift=getPos(canvas);
-	
-	rc = canvas.getContext("2d");
+	var rc = canvas.getContext("2d");
 	//я сделаю свой консоль с логированием и эксепшенами
 	try {
-		paint=new Paint(canvas);
+		paint = new Paint(canvas);
 	} catch(e) {log(e);}
-	imgTransf=new ImageTransformer(paint.layer[0],
-	                               "h1ji3-pi-black.jpg_", //http://www.raspberrypi.org/wp-content/uploads/2011/11/h1ji3-pi-black.jpg
-	                               function() {paint.refresh();});
+	var img_transf = new ImageTransformer(paint, 0,
+	                                     "h1ji3-pi-black.jpg", //http://www.raspberrypi.org/wp-content/uploads/2011/11/h1ji3-pi-black.jpg
+	                                     function() {paint.refresh();});
+	paint.setLayerObj(0, img_transf);
 	
 	
 	//создание кнопок
-	for (var i=0;i<paint.layer.length;i++) {
-		var b=document.createElement('button');
+	for (var i=0; i<paint.layer.length; i++) {
+		var b = document.createElement('button');
 		//вообще, так как-то криво. зато просто и работает
-		paint.layer[i].style.width="128px";
-		paint.layer[i].style.height="64px";
+		paint.layer[i].style.width  = "128px";
+		paint.layer[i].style.height = "64px";
 		b.appendChild(paint.layer[i]); //хейтер прямого доступа? замени на paint.getLayerBuffer(i)
-		b.onclick=(function(i) { return function() {paint.layer_cur=i;} })(i); //если тянет на каноничности, можно paint.setLayer(i);
+		b.onclick = (function(i) { return function() {paint.setLayer(i);} })(i);
 		buttons.appendChild(b);
 		buttons.appendChild(document.createElement('br'));
 	}

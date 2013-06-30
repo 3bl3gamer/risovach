@@ -11,14 +11,15 @@ function getPos(obj) {
 }
 function toRange(a,x,b) {return x<a?a:x>b?b:x}
 
+
 function ColorPicker(host) {
 	var p = this;
 	var s;
 	
+	//стилизация
 	s = host.style;
 	s.position = "relative";
 	s.display = "inline-block";
-	//s.border = "1px solid";
 	s.cursor = "crosshair";
 	
 	var wheel = new Image();
@@ -54,7 +55,7 @@ function ColorPicker(host) {
 	wheel_marker = mm(host);
 	rect_marker = mm(color);
 	
-	
+	//финкции для конвертирования цветов
 	var P3 = 0.33333333, P6 = 1-P3;
 	function HSL2RGB(h, s, l) {
 		var m1, m2;
@@ -99,6 +100,7 @@ function ColorPicker(host) {
 		return [h, s, l];
 	}
 	
+	//геттеры-сеттеры
 	this.setRGB = function(r, g, b) {
 		var hsl = RGB2HSL(r, g, b);
 		hue = hsl[0];
@@ -114,8 +116,10 @@ function ColorPicker(host) {
 		return RGBa2HTML(HSL2RGB(hue, sat, lum));
 	}
 	
+	//размеры частей
 	var wheel_x,wheel_y,wheel_r, wheel_w,wheel_w2;
 	var rect_x,rect_y, rect_w,rect_w2;
+	//обновление размеров
 	function updateMetrics() {
 		wheel_w = wheel.offsetWidth;
 		wheel_r = wheel_w*0.43;
@@ -128,12 +132,14 @@ function ColorPicker(host) {
 		rect_x = wheel_x+color.offsetTop;
 		rect_y = wheel_y+color.offsetLeft;
 	}
+	//событие сработало над центральным квадратом?
 	function isEventOverRect(e) {
 		var dx = e.pageX - wheel_x - wheel_w2;
 		var dy = e.pageY - wheel_y - wheel_w2;
 		return Math.abs(dx) < rect_w2 && Math.abs(dy) < rect_w2;
 	}
 	
+	//обновление расположения маркеров
 	function updateAll() {
 		updateMetrics();
 		var ang = hue*3.1415927*2;
@@ -142,12 +148,12 @@ function ColorPicker(host) {
 		markerSetPos(rect_marker, (1-sat)*rect_w, (1-lum)*rect_w);
 		if (p.onchange) p.onchange();
 	}
-	
 	function markerSetPos(marker, dx, dy) {
 		marker.style.left = (dx|0)+"px";
 		marker.style.top  = (dy|0)+"px";
 	}
 	
+	//обработчики h-колеса и sl-квадрата
 	var hue=0, sat=0, lum=0;
 	function wheelProcess(pageX, pageY) {
 		var dx = pageX-wheel_x-wheel_w2;
@@ -171,7 +177,9 @@ function ColorPicker(host) {
 		if (p.onchange) p.onchange();
 	}
 	
+	//магия
 	function makeStartFunc(move_event, end_event, is_touch) {
+		//функция, извлекающая из евента координаты и передающая их далее
 		var moveFuncGenerator = new Function("extractedCoordsHandler",
 			"return function(e) {\
 				e.preventDefault();"+
@@ -182,6 +190,7 @@ function ColorPicker(host) {
 		var rect_on_move  = moveFuncGenerator(rectProcess);
 		var wheel_on_move = moveFuncGenerator(wheelProcess);
 		
+		//функция, отключающая обработчики от документа
 		var endFuncGenerator = new Function("picker", "moveHandler",
 			"return function(e) {\
 				e.preventDefault();"+
@@ -194,6 +203,8 @@ function ColorPicker(host) {
 		var rect_on_end  = endFuncGenerator(p, rect_on_move);
 		var wheel_on_end = endFuncGenerator(p, wheel_on_move);
 		
+		//подключающая функция
+		//подключает либо обработчики колеса, либо квадрата. смотря, куда ткнуть
 		return new Function("updateMetrics", "isEventOverRect",
 		                    "rectMoveHandler",  "rectEndHandler",
 		                    "wheelMoveHandler", "wheelEndHandler",

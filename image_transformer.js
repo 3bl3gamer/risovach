@@ -8,6 +8,10 @@
 
 ﻿var imgDefault="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAIAAAACDbGyAAAAAXNSR0IArs4c6QAAAAlwSFlzAAALEwAACxMBAJqcGAAAAAd0SU1FB9oMCRUiMrIBQVkAAAAZdEVYdENvbW1lbnQAQ3JlYXRlZCB3aXRoIEdJTVBXgQ4XAAAADElEQVQI12NgoC4AAABQAAEiE+h1AAAAAElFTkSuQmCC";
 
+function point_distance(x0,y0,x1,y1) {
+	return Math.sqrt((x0-x1)*(x0-x1)+(y0-y1)*(y0-y1));
+}
+
 //спрайт. содержит:
 // * коэффициенты растяжения по Х и У
 // * угол поворота
@@ -32,7 +36,7 @@ function Sprite(img) {
 		rc.restore();
 	}
 	
-	//возвразает координаты 4х угловых точек (привет, тригонометрия :3)
+	//возвращает координаты 4х угловых точек (привет, тригонометрия :3)
 	this.getPoints = function() {
 		var _cos = Math.cos(this.rotation)
 		  , _sin = Math.sin(this.rotation)
@@ -47,34 +51,103 @@ function Sprite(img) {
 			[( -xo   *_cos+(+yo-h)*_sin)*xs+x, ((-yo+h)*_cos  -xo   *_sin)*ys+y]
 		];
 	}
+	this.getPointsRelativePolar = function() {
+		var x0=-this.xo, y0=-this.yo;
+		var x1=this.img.width+x0, y1=this.img.height+y0;
+		return [
+			[Math.sqrt(x0*x0+y0*y0), Math.atan2(y0,x0)],
+			[Math.sqrt(x1*x1+y0*y0), Math.atan2(y0,x1)],
+			[Math.sqrt(x1*x1+y1*y1), Math.atan2(y1,x1)],
+			[Math.sqrt(x0*x0+y1*y1), Math.atan2(y1,x0)]
+		];
+	}
+	this.getPointRelativePolar = function(id) {
+		var x0=-this.xo, y0=-this.yo;
+		var x1=this.img.width+x0, y1=this.img.height+y0;
+		switch (id) { //хм. как-то неэстетично
+			case 0: return [Math.sqrt(x0*x0+y0*y0), Math.atan2(y0,x0)];
+			case 1: return [Math.sqrt(x1*x1+y0*y0), Math.atan2(y0,x1)];
+			case 2: return [Math.sqrt(x1*x1+y1*y1), Math.atan2(y1,x1)];
+			case 3: return [Math.sqrt(x0*x0+y1*y1), Math.atan2(y1,x0)];
+		}
+	}
 }
 
 
 //содержит спрайт и функции для управления его трансформацией
-//принимает:
-// * буфер для рисования
-// * ссылку на загружаемый файл
-function ImageTransformer(buffer,url,onload) {
-	this.buffer = buffer;
-	this.rc = buffer.getContext("2d");
-	
-	this.onload = onload;
+function ImageTransformer(paint, buffer_id, url, onload) {
+	var buffer = paint.getLayerBuffer(buffer_id);
+	var rc = buffer.getContext("2d");
 	
 	var img = new Image();
-	this.sprite = new Sprite(img);
-	this.sprite.x = buffer.width*0.5;
-	this.sprite.y = buffer.height*0.5;
-	this.draw = function() {
-		var rc = this.rc;
-		var line = function(x0,y0,x1,y1) {
+	var sprite = new Sprite(img);
+	sprite.x = buffer.width*0.5;
+	sprite.y = buffer.height*0.5;
+	
+	var EVENT_DOWN=1, EVENT_MOVE=2, EVENT_UP=4;
+	var grab_x=NaN, grab_y=NaN, grab_i=-1;
+	var min_dis, min_i;
+	function draw(cx,cy,event) {
+		/*var line = function(x0,y0,x1,y1) {
 			rc.beginPath();
 			rc.moveTo(x0,y0);
 			rc.lineTo(x1,y1);
 			rc.stroke();
+		}*/
+		rc.clearRect(0,0, buffer.width,buffer.height);
+		sprite.draw(rc);
+		
+		if (event==EVENT_UP) {
+			grab_i = -1;
+			grab_x = grab_y = NaN;
 		}
-		this.sprite.draw(this.rc);
-		//var p = this.sprite.getPoints();
-		//for (var i=0;i<4;i++) line(0,0,p[i][0],p[i][1]);
+		
+		//нет координат мыши(и др.) - рисуем картинку и хватит
+		if (cx === undefined) return;
+		
+		//var p = sprite.getPoints();
+		//for (var i=0;i<4;i++) rc.fillText(i,p[i][0],p[i][1]);//line(0,0,p[i][0],p[i][1]);
+		
+		var p = sprite.getPoints();
+		for (var i=0; i<4; i++)
+			circleFill(p[i][0],p[i][1],3);
+		
+		if (event == EVENT_MOVE) {
+			if (grab_i != -1) { //перетаскивается точка
+				var rpx=cx-grab_x-sprite.x, rpy=cy-grab_y-sprite.y;
+				var pp = sprite.getPointRelativePolar(grab_i);
+				sprite.xscale = sprite.yscale = Math.sqrt(rpx*rpx+rpy*rpy)/pp[0];
+				sprite.rotation = Math.atan2(rpy, rpx)-pp[1];
+			} else
+			if (grab_x == grab_x) { //перетаскивается вся картинка
+				sprite.x = cx-grab_x;
+				sprite.y = cy-grab_y;
+			}
+		}
+		
+		if (grab_i != -1) { //захвачена точка. рисуем её и выходим
+			circleStroke(p[grab_i][0],p[grab_i][1], 8);
+			return;
+		}
+		if (grab_x == grab_x) return; //просто перетаскивается. даже точку обводить не надо
+		
+		var min_dis=Infinity, min_i;
+		for (var i=0; i<4; i++) {
+			var dis = point_distance(cx,cy,p[i][0],p[i][1]);
+			if (dis < min_dis) {min_dis=dis; min_i=i}
+		}
+		circleStroke(p[min_i][0],p[min_i][1], min_dis<8?8:5);
+		
+		if (event == EVENT_DOWN) {
+			if (min_dis < 8) { //ткнули в точку
+				grab_x = cx-p[min_i][0];
+				grab_y = cy-p[min_i][1];
+				grab_i = min_i;
+			} else { //ткнули не в точку (простое перетаскивание)
+				grab_x = cx-sprite.x;
+				grab_y = cy-sprite.y;
+			}
+		}
 	}
 	
 	img.src=imgDefault;//загружаем дефолтное изображение из base64
@@ -82,92 +155,65 @@ function ImageTransformer(buffer,url,onload) {
 	//как дефолтное "загрузилось", ставим параметры
 	//для дефолтной картинки и пускаем загрузку по переданной ссылке
 	img.onload=function() {
-		sender.sprite.xo=this.width*0.5;
-		sender.sprite.yo=this.height*0.5;
-		sender.sprite.xscale=8;
-		sender.sprite.yscale=8;
-		sender.draw();//рисуем дефолтную на канвас
-		sender.onload();//сигнализируем об этом
+		sprite.xo = this.width*0.5;
+		sprite.yo = this.height*0.5;
+		sprite.xscale=8;
+		sprite.yscale=8;
+		draw();//рисуем дефолтную на канвас
+		onload();//сигнализируем об этом
 		img.src=url;//заменяем ссылку
 		img.onload=function() {
-			sender.sprite.xo=this.width*0.5;
-			sender.sprite.yo=this.height*0.5;
-			sender.sprite.xscale=0.25;
-			sender.sprite.yscale=0.25;
-			sender.sprite.rotation=0.1;
-			sender.draw();//рисуем загруженную на канвас
-			sender.onload();//сигнализируем об этом
+			sprite.xo=this.width*0.5;
+			sprite.yo=this.height*0.5;
+			sprite.xscale=0.25;
+			sprite.yscale=0.25;
+			sprite.rotation=0.1;
+			draw();//рисуем загруженную на канвас
+			onload();//сигнализируем об этом
 		}
 	}
 	
-	
-	this.prevX=0;
-	this.prevY=0;
-	this.grabbed=false;
-	this.grab=function(mx,my) {
-		this.prevX=mx;
-		this.prevY=my;
-		this.grabbed=true;
+	function circleFill(x,y,r) {
+		rc.beginPath();
+		rc.arc(x,y, r, 0,3.1415927*2, false);
+		rc.fill();
 	}
-	this.move=function(mx,my) {
-		if (!this.grabbed) return;
-		this.x+=mx-this.prevX;
-		this.y+=my-this.prevY;
-		this.prevX=mx;
-		this.prevY=my;
-		this.rc.clearRect(0,0,this.buffer.width,this.buffer.height);
-		this.draw();
-	}
-	this.drop=function() {
-		this.grabbed=false;
+	function circleStroke(x,y,r) {
+		rc.beginPath();
+		rc.arc(x,y, r, 0,3.1415927*2, false);
+		rc.stroke();
 	}
 	
-	this.scale=function(xs,ys) {
-		this.sprite.xscale*=xs;
-		this.sprite.yscale*=ys;
-		this.rc.clearRect(0,0,this.buffer.width,this.buffer.height);
-		this.draw();
+	function grab(e) {
+		var cx = e.pageX-paint.canvas_pos[0];
+		var cy = e.pageY-paint.canvas_pos[1];
+		draw(cx, cy, EVENT_DOWN);
+		e.preventDefault();
+	}
+	function move(e) {
+		var cx = e.pageX-paint.canvas_pos[0];
+		var cy = e.pageY-paint.canvas_pos[1];
+		
+		draw(cx, cy, EVENT_MOVE);
+		
+		paint.refresh();
+		e.preventDefault();
+	}
+	function drop(e) {
+		draw(undefined, undefined, EVENT_UP);
+		paint.refresh();
+		e.preventDefault();
 	}
 	
-	this.rotate=function(a) {
-		//if (!this.grabbed) return;
-		this.sprite.rotation+=a;//(mx-this.prevX)*0.005;
-		//this.prevX=mx;
-		//this.prevY=my;
-		this.rc.clearRect(0,0,this.buffer.width,this.buffer.height);
-		this.draw();
+	this.connect = function() {
+		document.addEventListener("mousedown", grab, false);
+		document.addEventListener("mousemove", move, false);
+		document.addEventListener("mouseup",   drop, false);
+	}
+	this.disconnect = function() {
+		document.removeEventListener("mousedown", grab, false);
+		document.removeEventListener("mousemove", move, false);
+		document.removeEventListener("mouseup",   drop, false);
 	}
 }
 
-
-/*function Point(x,y,t) {
-	this.x=x;
-	this.y=y;
-	this.r=r;
-	this.move=function(x,y) {
-		this.x=x;
-		this.y=y;
-	}
-	this.isMoudeOver=function(mx,my) {
-		if (mx<this.x-r || mx>this.x+r ||
-		    my<this.y-t || my<this.r+r) return false;
-		var dx=mx-this.x, dy=my-this.y;
-		if (Math.sqrt(dx*dx+dy*dy)>r*r) return false;
-		return true;
-	}
-}
-
-function ImageTransformer(img,x,y) {
-	this.image=img;
-	this.center=new Point(x,y,5);
-	this.vertex=new Point(x+16,y+16,5);
-	this.point=[this.center,this.vertex];
-	this.draw=function(rc) {
-		var pa=this.point;
-		for (var i in pa) {
-			var p=pa[i];
-			rc.beginPath();
-			rc.arc(p.x,p.y,p.r,  0,3.1415927*2, false);
-		}
-	}
-}*/
