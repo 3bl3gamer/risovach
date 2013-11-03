@@ -1,0 +1,95 @@
+﻿<html>
+<head>
+<title>Test</title>
+</head>
+<body style="background-color:#101010;">
+	<canvas id="canvas" width=800 height=600 style="background:url(../back.png);"></canvas>
+</body>
+<script>
+//TODO: fix outside exception
+//TODO: fix strange nonsmooth border
+//TODO: OPTIMIZATION and cleanup
+//TODO: округлять что надо и где надо, а не "что-нибудь где-нибудь на всякий случай"
+
+function toRange(a, x, b) {
+	return x<a ? a : x>b ? b : x;
+}
+
+var rc = canvas.getContext("2d");
+function line(x0,y0,x1,y1) {
+	//display data
+	var blur = 5;
+	var r = 16, ir = 0.5/blur, safe_r = r+blur+1;
+	
+	//borders data
+	var yfrom = toRange(0, (y0>y1 ? y1 : y0) - safe_r, canvas.height);
+	var yto   = toRange(0, (y0>y1 ? y0 : y1) + safe_r, canvas.height);
+	var xfrom_base = toRange(0, (x0>x1 ? x1 : x0) - safe_r, canvas.width)|0;
+	var xto_base   = toRange(0, (x0>x1 ? x0 : x1) + safe_r, canvas.width);
+	
+	//canvas data
+	var xdata = xfrom_base;
+	var ydata = yfrom;
+	var w = (xto_base-xfrom_base)|0;
+	var h = (yto-yfrom)|0;
+	var iData = rc.getImageData(xdata, ydata, w, h);
+	var data = iData.data;//new Uint8Array(w*h*4);//
+	
+	//shifting
+	x0 -= xfrom_base; y0 -= yfrom;
+	x1 -= xfrom_base; y1 -= yfrom;
+	xfrom_base = yfrom = 0;
+	xto_base = w; yto = h;
+	
+	//math data
+	var dx=x1-x0, dy=y1-y0;
+	var dis = Math.sqrt(dx*dx+dy*dy);
+	var cos=dx/dis, sin=dy/dis, tan=sin/cos;
+	
+	
+	for (var j=yfrom|0; j<yto; j+=1) {
+		var xfrom = toRange(xfrom_base, x0+(j-y0)/tan+(y1>y0?-safe_r/sin:safe_r/sin), xto_base);
+		var xto   = toRange(xfrom_base, x0+(j-y0)/tan+(y1>y0?safe_r/sin:-safe_r/sin), xto_base);
+		for (var i=xfrom|0; i<xto; i+=1) {
+			var pos = (i+j*w)<<2;
+			var vdis = (i-x0)*sin - (j-y0)*cos;
+			if (vdis < 0) vdis = -vdis;
+			var hdis = (j-y0)*sin + (i-x0)*cos;
+			
+			if (hdis < 0) continue;
+			var k;
+			if (hdis < 16+8) {
+				var c1 = (r-vdis)*ir+0.5;
+				if (c1 < 0) c1 = 0;
+				if (c1 > 1) c1 = 1;
+				var c2 = (r-Math.sqrt((x0-i)*(x0-i) + (y0-j)*(y0-j)))*ir+0.5;
+				if (c2 < 0) c2 = 0;
+				if (c2 > 1) c2 = 1;
+				k = c1-c2;
+			} else
+			if (hdis > dis) k = (r-Math.sqrt((x1-i)*(x1-i) + (y1-j)*(y1-j)))*ir+0.5; else
+			                k = (r-vdis)*ir+0.5;
+			data[pos+3] += Math.max(0,k*256);
+		}
+	}
+	
+	rc.putImageData(iData, xdata, ydata);
+	rc.strokeStyle="white"
+	rc.beginPath()
+	rc.moveTo(xdata+x0, ydata+y0)
+	rc.lineTo(xdata+x1, ydata+y1)
+	rc.stroke()
+}
+
+var step = 1;
+var stt = new Date().getTime();
+for (var i=0; i<Math.PI*8;i+=step) {
+	//rc.clearRect(0,0,canvas.width,canvas.height);
+	var r = 10*i+50, nr=10*(i+step)+50;
+	var xo=canvas.width/2, yo=canvas.height/2;
+	line(xo+Math.cos(i)*r, yo+Math.sin(i)*r, xo+Math.cos(i+step)*nr, yo+Math.sin(i+step)*nr);
+}
+alert(new Date().getTime() - stt);
+
+</script>
+</html>
