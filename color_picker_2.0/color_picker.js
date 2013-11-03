@@ -12,7 +12,8 @@ function getPos(obj) {
 function toRange(a,x,b) {return x<a?a:x>b?b:x}
 
 
-function ColorPicker(host) {
+function ColorPicker(host, img_path) {
+	if (!img_path) img_path = "";
 	var p = this;
 	var s;
 	
@@ -23,7 +24,7 @@ function ColorPicker(host) {
 	s.cursor = "crosshair";
 	
 	var wheel = new Image();
-	wheel.src = "wheel.png";
+	wheel.src = img_path+"wheel.png";
 	s = wheel.style;
 	s.position = "relative";
 	wheel.width = wheel.height = 195;
@@ -37,7 +38,7 @@ function ColorPicker(host) {
 	host.appendChild(color);
 	
 	var rect = new Image();
-	rect.src = "rect.png";
+	rect.src = img_path+"rect.png";
 	s = rect.style;
 	s.position = "relative";
 	rect.width = rect.height = 101;
@@ -45,7 +46,7 @@ function ColorPicker(host) {
 	
 	function mm(parent) { //make marker
 		var m = new Image();
-		m.src = "marker.png";
+		m.src = img_path+"marker.png";
 		s = m.style;
 		s.position = "absolute";
 		s.margin = "-8px";

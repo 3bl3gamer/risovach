@@ -1,0 +1,15 @@
+﻿<html>
+<head>
+<title></title>
+<script src="color_picker.js"></script>
+
+</head>
+<body>
+	<div id="picker"></div>
+	<div id="color" style="width:64; height:64; border:1px solid;"></div>
+	<script>
+		var p = new ColorPicker(picker);
+		p.onchange = function() {color.style.background=this.getHTML()}
+	</script>
+</body>
+</html>

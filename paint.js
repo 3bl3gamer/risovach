@@ -15,41 +15,38 @@ function createBuffer(w, h) {
 
 //прямоугольник
 function Rect() {
-	this.clear=function() {
-		this.x0=+Infinity;//(x0,y0)----*
-		this.y0=+Infinity;//   |       |
-		this.x1=-Infinity;//   |       |
-		this.y1=-Infinity;//   *----(x1,y1)
+	this.clear = function() {
+		this.x0 =+ Infinity;//(x0,y0)----*
+		this.y0 =+ Infinity;//   |       |
+		this.x1 =- Infinity;//   |       |
+		this.y1 =- Infinity;//   *----(x1,y1)
 	}
-	this.reset=function(x,y) {
-		this.x0=x;
-		this.x1=x;
-		this.y0=y;
-		this.y1=y;
+	this.reset = function(x,y) {
+		this.x0 = x;
+		this.x1 = x;
+		this.y0 = y;
+		this.y1 = y;
 	}
-	this.reset_r=function(x,y,r) {
-		this.x0=x-r;
-		this.x1=x+r;
-		this.y0=y-r;
-		this.y1=y+r;
+	this.reset_r = function(x,y,r) {
+		this.x0 = x-r;
+		this.x1 = x+r;
+		this.y0 = y-r;
+		this.y1 = y+r;
 	}
-	this.extend=function(x,y) {
-		if (this.x0>x) this.x0=x;
-		if (this.x1<x) this.x1=x;
-		if (this.y0>y) this.y0=y;
-		if (this.y1<y) this.y1=y;
+	this.extend = function(x,y) {
+		if (this.x0>x) this.x0 = x;
+		if (this.x1<x) this.x1 = x;
+		if (this.y0>y) this.y0 = y;
+		if (this.y1<y) this.y1 = y;
 	}
-	this.extend_r=function(x,y,r) {
-		if (this.x0>x-r) this.x0=x-r;
-		if (this.x1<x+r) this.x1=x+r;
-		if (this.y0>y-r) this.y0=y-r;
-		if (this.y1<y+r) this.y1=y+r;
+	this.extend_r = function(x,y,r) {
+		if (this.x0>x-r) this.x0 = x-r;
+		if (this.x1<x+r) this.x1 = x+r;
+		if (this.y0>y-r) this.y0 = y-r;
+		if (this.y1<y+r) this.y1 = y+r;
 	}
 	
 	this.clear();
-	//if (arr)
-	//	for (var i=0;i<arr.length;i+=2)
-	//		this.extend(arr[i],arr[i+1]);
 	return this;
 }
 

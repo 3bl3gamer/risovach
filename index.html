@@ -1,18 +1,14 @@
 ﻿<html>
 <head>
-<title>circle</title>
-<link rel="stylesheet" href="farbtastic.css">
-<script src="jquery-1.6.4.min.js" type="text/javascript"></script>
-<script src="farbtastic.js" type="text/javascript"></script>
-
-<script type="text/javascript" src="util.js"></script>
-<script type="text/javascript" src="color_picker.js"></script>
-<script type="text/javascript" src="history.js"></script>
-<script type="text/javascript" src="image_transformer.js"></script>
-<script type="text/javascript" src="paint.js"></script>
+<title>Risovach</title>
+<script src="color_picker_2.0/color_picker.js"></script>
+<script src="util.js"></script>
+<script src="history.js"></script>
+<script src="image_transformer.js"></script>
+<script src="paint.js"></script>
 
 
-<script type="text/javascript">
+<script>
 
 function log(text) {div_log.innerHTML+=text+"</br>";}
 
@@ -24,7 +20,7 @@ window.onload = function() {
 		paint = new Paint(canvas);
 	} catch(e) {log(e);}
 	var img_transf = new ImageTransformer(
-		paint, 0, /*server data from*/"h1ji3-pi-black.jpg"/*server data to*/, //http://www.raspberrypi.org/wp-content/uploads/2011/11/h1ji3-pi-black.jpg
+		paint, 0, /*server data from*/"h1ji3-pi-black.jpg_"/*server data to*/, //http://www.raspberrypi.org/wp-content/uploads/2011/11/h1ji3-pi-black.jpg
 		function() {paint.refresh();});
 	paint.setLayerObj(0, img_transf);
 	
@@ -41,9 +37,15 @@ window.onload = function() {
 		buttons.appendChild(document.createElement('br'));
 	}
 	
-	var picker = $.farbtastic("#picker", function(color) {paint.brushSetColor(color);}).setRGB([1,1,1]);
-	picker.setColor("#000000");
-	paint.onColorPick = function(c) {picker.setRGB([c[0]/255, c[1]/255, c[2]/255])}
+	var p = new ColorPicker(picker, "color_picker_2.0/");
+	p.setRGB(0,0,0);
+	p.onchange = function() {
+		color.style.background = this.getHTML();
+	};
+	p.onfinalchange = function() {
+		paint.brushSetColor(this.getHTML());
+	};
+	paint.onColorPick = function(c) {p.setRGB([c[0]/255, c[1]/255, c[2]/255])}
 }
 
 function send() {
@@ -82,6 +84,7 @@ function send() {
 		<button onclick="send()">Send</button></td>
 		<td>
 		<div id="picker"></div>
+		<div id="color" style="width:64; height:64; outline:1px solid white;"></div>
 		</td>
 	</tr>
 </table>
