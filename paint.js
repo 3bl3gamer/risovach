@@ -211,7 +211,7 @@ function Paint(canvas, wacom_plugin) {
 		var d2 = d*2, d2r;
 		//x0-=d; y0-=d; x1-=d; y1-=d;
 		var s;
-		var k, dx=x1-x0, dy=y1-y0, len=Math.sqrt(dx*dx+dy*dy), dp=p1-p0,
+		var k, dx=x1-x0, dy=y1-y0, len=Math.sqrt(dx*dx+dy*dy), dp=p1-p0;
 		var adx=Math.abs(dx), ady=Math.abs(dy);
 		var modifyer = this.brushStep/len;
 		dx *= modifyer;
@@ -640,18 +640,18 @@ function Paint(canvas, wacom_plugin) {
 	
 	//упаковка всех текущих параметров в массив
 	p.getParams = function() {
-		var _p = [this.layer_cur,this.brushSize,this.brushBlur,
-		          this.brushStep,this.brushColor.slice(),0,0];
-		return _p;
+		return [this.layer_cur, this.brushSize, this.brushBlur,
+		        this.brushStep, this.brushColor.slice(), 0, this.brushMode];
 	}
 	//восстановление параметров из массива
-	p.setParams = function(_p) {
+	p.setParams = function(_p) {console.log(_p[4])
 		this.setLayer(_p[0]);
 		this.brushSetSize(_p[1]);
 		this.brushSetBlur(_p[2]);
 		this.brushStep = _p[3];
-		this.brushColor = _p[4];
+		this.brushSetColor(_p[4][0]); this.brushSetAlpha(_p[4][1]);
 		//,0 = _p[5];
+		this.brushMode = _p[6];
 		//this.brushSpriteUpdate();
 	}
 	

@@ -45,7 +45,7 @@ window.onload = function() {
 	p.onfinalchange = function() {
 		paint.brushSetColor(this.getHTML());
 	};
-	paint.onColorPick = function(c) {p.setRGB([c[0]/255, c[1]/255, c[2]/255])}
+	paint.onColorPick = function(c) {p.setRGB(c[0]/255, c[1]/255, c[2]/255)}
 }
 
 function send() {

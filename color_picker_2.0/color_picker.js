@@ -147,6 +147,7 @@ function ColorPicker(host, img_path) {
 		markerSetPos(wheel_marker, wheel_w2+Math.sin(ang)*wheel_r,
 		                           wheel_w2-Math.cos(ang)*wheel_r);
 		markerSetPos(rect_marker, (1-sat)*rect_w, (1-lum)*rect_w);
+		color.style.background = RGBa2HTML(HSL2RGB(hue, 1, 0.5));
 		if (p.onchange) p.onchange();
 	}
 	function markerSetPos(marker, dx, dy) {
