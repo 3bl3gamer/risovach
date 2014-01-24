@@ -27,3 +27,4 @@ function rgb2col(arr) {
 	for (i in arr) str+=arr[i]>15 ? arr[i].toString(16) : "0"+arr[i].toString(16);
 	return str;
 }
+

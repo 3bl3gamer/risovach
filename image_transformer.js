@@ -155,24 +155,24 @@ function ImageTransformer(paint, buffer_id, url, onload) {
 		}
 	}
 	
-	img.src=imgDefault;//загружаем дефолтное изображение из base64
-	var sender=this;
+	img.src = imgDefault;//загружаем дефолтное изображение из base64
+	var sender = this;
 	//как дефолтное "загрузилось", ставим параметры
 	//для дефолтной картинки и пускаем загрузку по переданной ссылке
-	img.onload=function() {
+	img.onload = function() {
 		sprite.xo = this.width*0.5;
 		sprite.yo = this.height*0.5;
-		sprite.xscale=8;
-		sprite.yscale=8;
+		sprite.xscale = 8;
+		sprite.yscale = 8;
 		draw();//рисуем дефолтную на канвас
 		onload();//сигнализируем об этом
-		img.src=url;//заменяем ссылку
-		img.onload=function() {
-			sprite.xo=this.width*0.5;
-			sprite.yo=this.height*0.5;
-			sprite.xscale=0.75;
-			sprite.yscale=0.75;
-			sprite.rotation=0;
+		img.src = url;//заменяем ссылку
+		img.onload = function() {
+			sprite.xo = this.width*0.5;
+			sprite.yo = this.height*0.5;
+			sprite.xscale = 0.75;
+			sprite.yscale = 0.75;
+			sprite.rotation = 0;
 			draw();//рисуем загруженную на канвас
 			onload();//сигнализируем об этом
 		}
