@@ -79,6 +79,9 @@ function Paint(canvas, wacom_plugin) {
 	var width = canvas.width;
 	var height = canvas.height;
 	var buffer = createBuffer(p.width,p.height);
+	Object.defineProperty(p, "buffer", {
+		get: function() {return buffer;}
+	});
 	
 	//ищем апишечку Bamboo'шечки
 	var penAPI;
@@ -89,37 +92,45 @@ function Paint(canvas, wacom_plugin) {
 	
 	
 	//параметры и методы слоёв
-	var layer = []; //массив слоёв (объектов canvas)
-	var layer_obj = []; //некий привязанный к слою объект
+	var layers = []; //массив слоёв (объектов canvas)
+	//var layer_obj = []; //некий привязанный к слою объект
 	var layer_numb = 4; //количество слоёв
 	for (var i=0;i<p.layer_numb;i++) //каждому слою по буфферу
-		layer.push(createBuffer(p.width,p.height));
-	var layer_cur = 0; //текущий
+		layers.push(createBuffer(p.width,p.height));
+	var layer_id_cur = 0; //текущий
+	
 	function getLayerBuffer(id) {//возвращает буффер указанного слоя (текущий по умолчанию)
-		if (id === undefined) return this.layer[this.layer_cur];
-		//if (id<0 || id>=this.layer_numb) return null;
-		return this.layer[id];
+		if (id === undefined) return layers[layer_id_cur];
+		if (id<0 || id>=this.layer_numb) throw new Error("Wrong layer id.");
+		return layers[id];
 	}
-	function setLayer(id) { //переключается на слой, устанавливает ему параметры
-		id = toRange(0, id, layer_numb-1);
-		if (id == layer_cur) return;
-		
-		var obj = layer_obj[layer_cur];
-		if (obj !== undefined) {
-			toolSet(p.TOOL_BRUSH);
-			obj.disconnect(canvas);
-		}
-		obj = layer_obj[id];
-		if (obj !== undefined) {
-			toolDisconnect();
-			obj.connect(canvas);
-		}
-		
-		layer_cur = id;
-	}
-	function setLayerObj(id, obj) {
+	p.getLayerBuffer = getLayerBuffer;
+	Object.defineProperty(p, "layer_buf", {
+		get: function() {return layer[layer_id_cur];}
+	});
+	Object.defineProperty(p, "layer_id", {
+		get: function() {return layer_id_cur;}
+		set: function(id) {
+				id = toRange(0, id, layer_numb-1);
+				if (id == layer_id_cur) return;
+				
+				/*var obj = layer_obj[layer_id_cur];
+				if (obj !== undefined) {
+					toolSet(p.TOOL_BRUSH);
+					obj.disconnect(canvas);
+				}
+				obj = layer_obj[id];
+				if (obj !== undefined) {
+					toolDisconnect();
+					obj.connect(canvas);
+				}*/
+				
+				layer_id_cur = id;
+			}
+	});
+	/*function setLayerObj(id, obj) {
 		layer_obj[id] = obj;
-	}
+	}*/
 	
 	p.autoUpdate = true;//автоматическая перерисовка при рисовании чего-то (отключается при восстановлении из истории)
 	//обновляет всё (если указаны координаты, нарисуется кружок кисти)
@@ -130,30 +141,30 @@ function Paint(canvas, wacom_plugin) {
 	p.refreshRegion = function(x,y,w,h,mouse_x,mouse_y) {
 		this.rc.clearRect(x,y,w,h);
 		//старая версия - все слои рисуются последовательно
-		/*for (var i=0;i<=this.layer_cur;i++)//всё, что ниже временного слоя
-			this.rc.drawImage(this.layer[i], x,y,w,h, x,y,w,h);
+		/*for (var i=0;i<=this.layer_id_cur;i++)//всё, что ниже временного слоя
+			this.rc.drawImage(this.layers[i], x,y,w,h, x,y,w,h);
 			
 		this.rc.drawImage(this.buffer, x,y,w,h, x,y,w,h);//временный слой
 		
-		for (var i=this.layer_cur+1;i<this.layer_numb;i++)//всё, что выше временного
-			this.rc.drawImage(this.layer[i], x,y,w,h, x,y,w,h);*/
+		for (var i=this.layer_id_cur+1;i<this.layer_numb;i++)//всё, что выше временного
+			this.rc.drawImage(this.layers[i], x,y,w,h, x,y,w,h);*/
 		
 		//новая версия. т.к. хитрые режимы смешивания (типа стёрки)
 		//должны влиять на один конкретный слой,
 		//сначала копируется этот самый (текущий) слой
 		rc.globalCompositeOperation = "source-over";
-		rc.drawImage(layer[layer_cur], x,y,w,h, x,y,w,h);
+		rc.drawImage(layers[layer_id_cur], x,y,w,h, x,y,w,h);
 		//поверх него рисуется временный слой с текущим режимом смешивания
 		rc.globalCompositeOperation = tools[tool_cur].blendMode;
 		rc.drawImage(buffer, x,y,w,h, x,y,w,h);
 		//под результат "подрисовываются" все слои, которые ниже
 		rc.globalCompositeOperation = "destination-over";
-		for (var i=layer_cur-1; i>=0; i--)
-			rc.drawImage(layer[i], x,y,w,h, x,y,w,h);
+		for (var i=layer_id_cur-1; i>=0; i--)
+			rc.drawImage(layers[i], x,y,w,h, x,y,w,h);
 		//и поверх, как и раньше, рисуются все слои, которые выше
 		rc.globalCompositeOperation = "source-over";
-		for (var i=layer_cur+1; i<layer_numb; i++)
-			rc.drawImage(layer[i], x,y,w,h, x,y,w,h);
+		for (var i=layer_id_cur+1; i<layer_numb; i++)
+			rc.drawImage(layers[i], x,y,w,h, x,y,w,h);
 		
 		if (mouse_x!==undefined && mouse_y!==undefined) {
 			console.assert(false);
@@ -229,13 +240,13 @@ function Paint(canvas, wacom_plugin) {
 	
 	
 	//подключение событий
-	p.handlersConnect = function(event_list) {
+	function handlersConnect(event_list) {
 		for (var i in event_list)
 			//log(event_list[i][1]);
 			event_list[i][0].addEventListener(i, event_list[i][1], false);
 	}
 	//отключение событий
-	p.handlersDisconnect = function(event_list) {
+	function handlersDisconnect(event_list) {
 		for (var i in event_list)
 			event_list[i][0].removeEventListener(i, event_list[i][1], false);
 	}
@@ -244,7 +255,7 @@ function Paint(canvas, wacom_plugin) {
 	//TODO: большое: вынести кисточку и пипетку в отдельные объекты
 	//      todoing...
 	//тулзы
-	p.tools = {};//{"режим": <объект, реализующий режим>}
+	var tools = {};//{"режим": <объект, реализующий режим>}
 	var tool = null;
 	p.toolsAdd = function(obj) {
 		var modes = obj.modes;
@@ -252,40 +263,36 @@ function Paint(canvas, wacom_plugin) {
 			tools[modes[i]] = obj;
 	}
 	
-	
-	//устанавливает инстумент
-	p.toolSet = function(tool) {
-		if (!(tool in this.tools)) return;//TODO: неправильная проверка. либо заменить [] на {}, либо проверять нормально
-		                                  //хотя почему? вроде норм
+	//устанавливает инструмент
+	p.toolSet = function(mode) {
+		if (!(mode in tools)) return;
 		
-		var group = this.tools[tool][0];
-		if (group != this.tools_cur_group) { //группа поменялась? перключаем обработчики
-			this.handlersDisconnect(this.tools_events[this.tools_cur_group]);
-			this.handlersConnect(this.tools_events[group]);
-			this.tools_cur_group=group;
+		var newTool = tools[mode];
+		newTool.mode = mode;
+		if (newTool != tool) { //группа поменялась? перключаем обработчики
+			if (tool) handlersDisconnect(tool.events);
+			handlersConnect(newTool.events);
+			tool = newTool;
 		}
-		
-		var func = this.tools[tool][1];
-		if (func) func(); //если функция переключения есть, вызываем
 	}
 	p.toolDisconnect = function() {
-		if (this.tools_cur_group == -1) return;
-		this.handlersDisconnect(this.tools_events[this.tools_cur_group]);
-		this.tools_cur_group = -1;
+		if (!tool) return;
+		handlersDisconnect(tool.events);
+		tool = null;
 	}
 	
 	
-	p.merge = function(src_buf_id) {
+	/*p.merge = function(src_buf_id) {
 		if (this.historyEnabled)
-			this.history.addMerge(this.layer,this.layer_cur,src_buf_id);
-		this.layer[this.layer_cur].rc.drawImage(this.layer[src_buf_id], 0,0);
+			this.history.addMerge(layers, layer_id_cur, src_buf_id);
+		layers[layer_id_cur].rc.drawImage(layers[src_buf_id], 0,0);
 		this.refresh();
-	}
+	}*/
 	
 	
 	p.undo = function() {
 		if (!historyEnabled) return;
-		history.undo(this.layer);
+		history.undo(layers);
 		refresh();
 	}
 	p.redo = function() {
@@ -300,11 +307,11 @@ function Paint(canvas, wacom_plugin) {
 	}
 	//rc.globalCompositeOperation = Math.random()>0.5?"source-over":"destination-out";
 	//вызываемая извне(например, из истории) функция, отрисовывающая путь
-	//путь - [[слой,размер,блюр,полный радиус,шаг,цвет,форма,режим],[x0,y0,p0, x1,y1,p1, ...]]
-	p.onRestorePath = function(path) {
+	//параметры - [слой, размер, блюр, полный радиус, шаг, цвет, форма, режим]
+	//путь - [x0,y0,p0, x1,y1,p1, ...]
+	p.onRestorePath = function(params, path) {
 		var _p = this.getParams();
-		this.setParams(path[0]);
-		path = path[1];
+		this.setParams(params);
 		
 		this.historyEnabled = false;
 		this.autoUpdate = false;
@@ -321,12 +328,12 @@ function Paint(canvas, wacom_plugin) {
 	}
 	p.onRestoreMerge = function(dest_buf_id,src_buf_id) {
 		this.historyEnabled = false;
-		var t = this.layer_cur;
-		this.layer_cur = dest_buf_id;
+		var t = layer_id_cur;
+		layer_id_cur = dest_buf_id;
 		
 		this.merge(src_buf_id);
 		
-		this.layer_cur = t;
+		layer_id_cur = t;
 		this.historyEnabled = true;
 		
 		this.refresh();
@@ -362,9 +369,18 @@ function Paint(canvas, wacom_plugin) {
 	
 	p.historyEnabled = true;
 	p.history = new History(p);
+//	p.historyAdd = function(step) {
+//		step.layer_id = layer_id_cur;
+//		step.capture(this.getLayerBuffer());
+//		this.history.add(step);
+//	}
+	p.applyBuffer = function() {
+		this.getLayerBuffer().rc.drawImage(this.buffer,0,0);//TODO: draw only changed
+		this.buffer.rc.clearRect(0,0,this.buffer.width,this.buffer.height);
+	}
 	
 	p.brushSetSize(2);
-	p.setLayer(0);
+	p.layer_id = 0;
 	p.brushSpriteUpdate();
 	p.toolSet(p.TOOL_BRUSH);
 	

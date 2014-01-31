@@ -1,8 +1,9 @@
 //вместо ​sizeSilent мб провеять что-то типа brush.autoUpdate
 
-function Brush(paint) {
+function Brush(paint, disableHistory) {
 	var b = this;
 	var canvas = paint.canvas;
+	//var history = disableHistory ? null : new BrushHistoryHandler(paint, this);
 	
 	var color = ['#000000',1];
 	Object.defineProperty(b, "color", {
@@ -29,6 +30,7 @@ function Brush(paint) {
 	var lastPressure = 1;
 	
 	var isDrawing = false; //идёт ли сейчас рисование
+	var isHistoryEnabled = false; //дублирует и кеширует параметр paint'а
 	var path = []; //путь (или полоса). массив вида [x0,y0,pressure0, x1,y1,pressure1, ...]
 	var params = []; //параметры [слой,размер,блюр,шаг,цвет,форма]
 	
@@ -171,7 +173,7 @@ function Brush(paint) {
 	function start(x,y,pressure) {
 		if (isDrawing) return false;
 		
-		if (paint.historyEnabled) {
+		if (isHistoryEnabled = paint.historyEnabled) {
 			//this.params = this.getParams();//???
 			path = [x,y,pressure];
 		}
@@ -202,7 +204,7 @@ function Brush(paint) {
 	//шаг рисования
 	function move(x,y,pressure) {
 		if (isDrawing) {
-			if (paint.historyEnabled)
+			if (isHistoryEnabled)
 				path.push(x,y,pressure);
 			
 			var dx=x-lastX, dy=y-lastY, len=Math.sqrt(dx*dx+dy*dy), dp;
@@ -236,12 +238,10 @@ function Brush(paint) {
 	function end() {
 		if (!isDrawing) return false;
 		
-		if (paint.historyEnabled)
-			paint.historyAdd(getParams(), path);
+		if (isHistoryEnabled && paint.historyEnabled) //вдруг у paint'а история успела отключиться
+			paint.history.add(new BrushHistoryStep(paint, getParams(), path));
 			//this.history.addPath(this.layer,[this.getParams(),this.path],this.brushGetTotalRadius());
 		
-		//this.getLayerBuffer().rc.drawImage(this.buffer,0,0);//TODO: draw only changed
-		//this.buffer.rc.clearRect(0,0,this.buffer.width,this.buffer.height);
 		isDrawing = false;
 		
 		return true;
@@ -329,4 +329,17 @@ function Picker(paint) {
 		'touchend':   [ document, paint.wrap(1,"end",  "") ]
 	};
 	p.events = events;
+}
+
+function Merge(paint) {
+	var m = this;
+	m.mergeCurrentWith = function(layer_id) {
+		throw new Error("Not yet.");
+	}
+	m.drawCurrentLayerOn = function(layer_id) {
+		if (paint.historyEnabled)
+			paint.history.add(new MergeHistoryStep(paint, paint.layer_id));
+		paint.getLayerBuffer(layer_id).rc.drawImage(paint.getLayerBuffer(), 0,0);
+		paint.refresh();
+	}
 }

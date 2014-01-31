@@ -10,29 +10,60 @@
 
 <script>
 
+//я сделаю свой консоль с логированием и эксепшенами
 function log(text) {div_log.innerHTML+=text+"</br>";}
+window.onerror = function(errorMsg, url, lineNumber) {
+	var msg = "Error happened on "+url+
+		"\non line "+lineNumber+":\n"+
+		errorMsg;
+	log(msg);
+	//XHRнуть бы тут куда-нибудь
+}
+//а так как в onerror до стека не достучаться (без изврата или вообще),
+//будет такой хацк. хоть о некоторых ошибках можно будет сообщать нормально
+var prevConsoleErrorFunc = console.error;
+console.error = function() {
+	var msg = "Error:";
+	//arguments - непоймичё, но точно не массив, хотя length есть
+	for (var i=0; i<arguments.length; i++)
+		msg += " "+arguments[i];
+	//первые две строки интереса не представляют: там "Error:" и эта функция
+	msg += "\n" + new Error().stack.split("\n").slice(2).join("\n");
+	log(msg);
+	//и тут бы XHRнуть
+	prevConsoleErrorFunc.apply(console, arguments);
+}
+//ну и заодно
+var prevConsoleWarnFunc = console.warn;
+console.warn = function() {
+	var msg = "Warn:";
+	for (var i=0; i<arguments.length; i++)
+		msg += " "+arguments[i];
+	log(msg);
+	//XHR?
+	prevConsoleWarnFunc.apply(console, arguments);
+}
 
 var paint;
 window.onload = function() {
 	var rc = canvas.getContext("2d");
-	//я сделаю свой консоль с логированием и эксепшенами
-	try {
-		paint = new Paint(canvas);
-	} catch(e) {log(e);}
+	
+	paint = new Paint(canvas);
 	var img_transf = new ImageTransformer(
 		paint, 0, /*server data from*/"h1ji3-pi-black_small.jpg"/*server data to*/, //http://www.raspberrypi.org/wp-content/uploads/2011/11/h1ji3-pi-black.jpg
 		function() {paint.refresh();});
-	paint.setLayerObj(0, img_transf);
+	//paint.setLayerObj(0, img_transf);
 	
 	
 	//создание кнопок
 	for (var i=0; i<paint.layer.length; i++) {
 		var b = document.createElement('button');
 		//вообще, так как-то криво. зато просто и работает
-		paint.layer[i].style.width  = "128px";
-		paint.layer[i].style.height = "64px";
-		b.appendChild(paint.layer[i]); //хейтер прямого доступа? замени на paint.getLayerBuffer(i)
-		b.onclick = (function(i) { return function() {paint.setLayer(i);} })(i);
+		var buf = paint.getLayerBuffer(i);
+		buf.style.width  = "128px";
+		buf.style.height = "64px";
+		b.appendChild(buf);
+		b.onclick = (function(i) { return function() {paint.layer_id=i;} })(i);
 		buttons.appendChild(b);
 		buttons.appendChild(document.createElement('br'));
 	}
