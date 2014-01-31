@@ -1,6 +1,6 @@
 //вместо ​sizeSilent мб провеять что-то типа brush.autoUpdate
 
-function Brush(paint, disableHistory) {
+function Brush(paint/*, disableHistory*/) {
 	var b = this;
 	var canvas = paint.canvas;
 	//var history = disableHistory ? null : new BrushHistoryHandler(paint, this);
@@ -34,7 +34,7 @@ function Brush(paint, disableHistory) {
 	var path = []; //путь (или полоса). массив вида [x0,y0,pressure0, x1,y1,pressure1, ...]
 	var params = []; //параметры [слой,размер,блюр,шаг,цвет,форма]
 	
-	var buffer = createBuffer(b.sizeMax*2+4);
+	var cursorBuffer = createBuffer(sizeMax*2+4);
 	var spriteSizeStep = 2;//2->   1,2,  4,      8,    16
 	var sprite = [];       //2-> 1,1,2,4,4,8,8,8,8,...
 	//полный радиус кисти. по сути - ребро bounding box'а пополам
@@ -44,7 +44,7 @@ function Brush(paint, disableHistory) {
 	
 	Object.defineProperty(b, "blur", {
 		get: function() {return blur;},
-		set: function(v) {blur = toRange(0, v, blurMax); spriteUpdate();}
+		set: function(v) {blur = toRange(0, v, blurMax);}
 	});
 	
 	Object.defineProperty(b, "size", {
@@ -54,7 +54,7 @@ function Brush(paint, disableHistory) {
 			
 			//рисуем кружок кисти в буффер, потом будет рисовать этот буффер под мышкой
 			//отрисовка буффера проходит быстрее, чем отрисовка 2х кругов, в ~10 раз
-			var buf=buffer, brc=buf.rc;
+			var buf=cursorBuffer, brc=buf.rc;
 			brc.clearRect(0,0,buf.width,buf.height);
 			
 			brc.strokeStyle = "white";
@@ -112,13 +112,13 @@ function Brush(paint, disableHistory) {
 			dx = cdx;
 			var next_size = size*ds;
 			for (var i=next_size+1; i<=size; i++)
-				brushSprite[i] = cbuf;
+				sprite[i] = cbuf;
 			size = next_size;
 		}
-		brushSprite[0] = brushSprite[1] = brushSprite[2];
-		for (var i=0; i<=brushSizeMax; i++) {
-			if (brushSprite[i]) document.body.appendChild(brushSprite[i]);
-			log(i+": "+(brushSprite[i] ? brushSprite[i].cur_size : -1));
+		sprite[0] = sprite[1] = sprite[2];
+		for (var i=0; i<=sizeMax; i++) {
+			if (sprite[i]) document.body.appendChild(sprite[i]);
+			log(i+": "+(sprite[i] ? sprite[i].cur_size : -1));
 		}
 		
 		log("Sprite updated");
@@ -128,9 +128,9 @@ function Brush(paint, disableHistory) {
 	function drawDot(x,y,pressure) {
 		var rc = paint.buffer.rc;
 		rc.globalAlpha = color[1];
-		var size = size * pressure;
-		var buf = sprite[size<<0];
-		var src_w=buf.width, dest_w=src_w*size/buf.cur_size;
+		var pSize = size * pressure;
+		var buf = sprite[pSize<<0];
+		var src_w=buf.width, dest_w=src_w*pSize/buf.cur_size;
 		rc.drawImage(buf,
 		             0,0, src_w,src_w,
 		             x-dest_w/2,y-dest_w/2, dest_w,dest_w);
@@ -139,7 +139,7 @@ function Brush(paint, disableHistory) {
 	
 	//рисует линию спрайтом
 	function drawLine(x0,y0,x1,y1,p0,p1) {
-		var rc = buffer.rc;
+		var rc = paint.buffer.rc;
 		rc.globalAlpha = color[1];
 		var d = getTotalRadius(), dr;
 		var d2 = d*2, d2r;
@@ -153,9 +153,9 @@ function Brush(paint, disableHistory) {
 		var cx=x0, cy=y0, cp=p0; //current
 		var i;
 		for (i=0; i<len-0.001; i+=step) {
-			var size = size * cp;
-			var buf = sprite[size<<0];
-			var src_w = buf.width, dest_w = src_w*size/buf.cur_size;
+			var pSize = size * cp;
+			var buf = sprite[pSize<<0];
+			var src_w = buf.width, dest_w = src_w*pSize/buf.cur_size;
 			rc.drawImage(buf,
 			             0,0, src_w,src_w,
 			             cx-dest_w/2,cy-dest_w/2, dest_w,dest_w);
@@ -170,7 +170,7 @@ function Brush(paint, disableHistory) {
 	
 	
 	//начало рисования штриха
-	function start(x,y,pressure) {
+	b.start = function(x,y,pressure) {
 		if (isDrawing) return false;
 		
 		if (isHistoryEnabled = paint.historyEnabled) {
@@ -185,7 +185,7 @@ function Brush(paint, disableHistory) {
 		if (paint.autoUpdate) {
 			var r = getTotalRadius();
 			paint.refreshRect.reset(x,y,r);
-			paint.tryToUpdate();
+			paint.tryToUpdate(x,y);
 		}
 		
 		lastX = x;
@@ -195,14 +195,14 @@ function Brush(paint, disableHistory) {
 		return true;
 	}
 	//отмена текущего штриха (например, при касании вторым пальцем)
-	function cancel() {
+	b.cancel = function() {
 		if (!isDrawing) return false;
 		paint.buffer.rc.clearRect(0,0,paint.buffer.width,paint.buffer.height);
 		isDrawing = false;
 		return true;
 	}
 	//шаг рисования
-	function move(x,y,pressure) {
+	b.move = function(x,y,pressure) {
 		if (isDrawing) {
 			if (isHistoryEnabled)
 				path.push(x,y,pressure);
@@ -222,10 +222,11 @@ function Brush(paint, disableHistory) {
 			}
 		}
 		
-		if (this.autoUpdate) {
+		if (paint.autoUpdate) {
 			var r = getTotalRadius();
 			paint.refreshRect.extend_r(x,y,r);
-			paint.tryToUpdate();
+			if (paint.tryToUpdate(x,y,r))
+				paint.refreshRect.extend_r(x,y,r);//TODO: чёт как-то неочень
 		}
 		
 		lastX = x;
@@ -235,12 +236,14 @@ function Brush(paint, disableHistory) {
 		return isDrawing;
 	}
 	//p.brushMoveOnEvent = function(e) {e = p.eventGetCoords(e); p.brushMove(e[0], e[1], getPressure());}
-	function end() {
+	b.end = function() {
 		if (!isDrawing) return false;
 		
 		if (isHistoryEnabled && paint.historyEnabled) //вдруг у paint'а история успела отключиться
 			paint.history.add(new BrushHistoryStep(paint, getParams(), path));
 			//this.history.addPath(this.layer,[this.getParams(),this.path],this.brushGetTotalRadius());
+		
+		paint.applyBuffer();
 		
 		isDrawing = false;
 		
@@ -255,7 +258,7 @@ function Brush(paint, disableHistory) {
 			"step": step,
 			"color": b.color,
 			"shape": 0,
-			"mode": mode
+			"mode": b.mode
 		}
 	}
 	//восстановление параметров из массива
@@ -265,12 +268,12 @@ function Brush(paint, disableHistory) {
 		step = params.step;
 		b.color = params.color;
 		//b.shape = params.shape;
-		//b.mode = params.moed;
+		//b.mode = params.mode;
 	}
 	
 	b.modes = ["brush", "eraser"];
 	Object.defineProperty(b, "mode", {
-		//get: function() {return mode;}
+		get: function() {return blendMode == BLEND_MODE_ERASER ? "eraser" : "brush";},
 		set: function(new_mode) {
 			blendMode = new_mode == "eraser" ? BLEND_MODE_ERASER : BLEND_MODE_NORMAL;
 		}
@@ -278,16 +281,17 @@ function Brush(paint, disableHistory) {
 	
 	var w = paint.SimpleEventWrapper;
 	var events = {
-		'mousedown': [ canvas,   w.wrap(0,"start","cancel", w.COORDS | w.PRESSURE | w.PREVENT | w.UPDATE_TIME) ],
-		'mousemove': [ document, w.wrap(0,"move", "cancel", w.COORDS | w.PRESSURE) ],
-		'mouseup':   [ document, w.wrap(0,"end",  "cancel") ],
-		'touchstart': [ canvas,   w.wrap(1,"start","cancel", w.COORDS | w.PRESSURE | w.PREVENT | w.UPDATE_TIME) ],
-		'touchmove':  [ document, w.wrap(1,"move", "cancel", w.COORDS | w.PRESSURE) ],
-		'touchend':   [ document, w.wrap(1,"end",  "cancel") ],
-		'mousewheel':     [ canvas, function(e) {p.brushSizeAdd( e.wheelDelta/120); e.preventDefault();}],
-		'DOMMouseScroll': [ canvas, function(e) {p.brushSizeAdd(-e.detail        ); e.preventDefault();}]
+		'mousedown': [ canvas,   w.wrap(b, 0,"start","cancel", w.COORDS | w.PRESSURE | w.PREVENT | w.UPDATE_TIME) ],
+		'mousemove': [ document, w.wrap(b, 0,"move", "cancel", w.COORDS | w.PRESSURE) ],
+		'mouseup':   [ document, w.wrap(b, 0,"end",  "cancel") ],
+		'touchstart': [ canvas,   w.wrap(b, 1,"start","cancel", w.COORDS | w.PRESSURE | w.PREVENT | w.UPDATE_TIME) ],
+		'touchmove':  [ document, w.wrap(b, 1,"move", "cancel", w.COORDS | w.PRESSURE) ],
+		'touchend':   [ document, w.wrap(b, 1,"end",  "cancel") ],
+		'mousewheel':     [ canvas, function(e) {b.size += e.wheelDelta/120; e.preventDefault();}],
+		'DOMMouseScroll': [ canvas, function(e) {b.size -= e.detail;         e.preventDefault();}]
 	};
-	p.events = events;
+	b.events = events;
+	spriteUpdate();
 }
 
 function Picker(paint) {
@@ -329,6 +333,8 @@ function Picker(paint) {
 		'touchend':   [ document, paint.wrap(1,"end",  "") ]
 	};
 	p.events = events;
+	
+	spriteUpdate();
 }
 
 function Merge(paint) {

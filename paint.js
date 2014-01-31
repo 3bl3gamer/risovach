@@ -78,7 +78,7 @@ function Paint(canvas, wacom_plugin) {
 	//p.eventGetCoords=function(e) {return [e.clientX-this.canvas_pos[0], e.clientY-this.canvas_pos[1]];}
 	var width = canvas.width;
 	var height = canvas.height;
-	var buffer = createBuffer(p.width,p.height);
+	var buffer = createBuffer(width, height);
 	Object.defineProperty(p, "buffer", {
 		get: function() {return buffer;}
 	});
@@ -95,8 +95,8 @@ function Paint(canvas, wacom_plugin) {
 	var layers = []; //массив слоёв (объектов canvas)
 	//var layer_obj = []; //некий привязанный к слою объект
 	var layer_numb = 4; //количество слоёв
-	for (var i=0;i<p.layer_numb;i++) //каждому слою по буфферу
-		layers.push(createBuffer(p.width,p.height));
+	for (var i=0;i<layer_numb;i++) //каждому слою по буфферу
+		layers.push(createBuffer(width, height));
 	var layer_id_cur = 0; //текущий
 	
 	function getLayerBuffer(id) {//возвращает буффер указанного слоя (текущий по умолчанию)
@@ -105,11 +105,15 @@ function Paint(canvas, wacom_plugin) {
 		return layers[id];
 	}
 	p.getLayerBuffer = getLayerBuffer;
-	Object.defineProperty(p, "layer_buf", {
-		get: function() {return layer[layer_id_cur];}
+	p.forEachLayer = function(fn) {
+		for (var i=0; i<layers.length; i++)
+			fn(i, layers[i]);
+	}
+	Object.defineProperty(p, "layer_numb", {
+		get: function() {return layer_numb;}
 	});
 	Object.defineProperty(p, "layer_id", {
-		get: function() {return layer_id_cur;}
+		get: function() {return layer_id_cur;},
 		set: function(id) {
 				id = toRange(0, id, layer_numb-1);
 				if (id == layer_id_cur) return;
@@ -139,7 +143,7 @@ function Paint(canvas, wacom_plugin) {
 	}
 	//обновляет прямоугольную область
 	p.refreshRegion = function(x,y,w,h,mouse_x,mouse_y) {
-		this.rc.clearRect(x,y,w,h);
+		rc.clearRect(x,y,w,h);
 		//старая версия - все слои рисуются последовательно
 		/*for (var i=0;i<=this.layer_id_cur;i++)//всё, что ниже временного слоя
 			this.rc.drawImage(this.layers[i], x,y,w,h, x,y,w,h);
@@ -155,8 +159,9 @@ function Paint(canvas, wacom_plugin) {
 		rc.globalCompositeOperation = "source-over";
 		rc.drawImage(layers[layer_id_cur], x,y,w,h, x,y,w,h);
 		//поверх него рисуется временный слой с текущим режимом смешивания
-		rc.globalCompositeOperation = tools[tool_cur].blendMode;
-		rc.drawImage(buffer, x,y,w,h, x,y,w,h);
+		//если режим смешивания не предоставлен, не рисуется. этакая оптимизация
+		if (rc.globalCompositeOperation = tool.blendMode)
+			rc.drawImage(buffer, x,y,w,h, x,y,w,h);
 		//под результат "подрисовываются" все слои, которые ниже
 		rc.globalCompositeOperation = "destination-over";
 		for (var i=layer_id_cur-1; i>=0; i--)
@@ -168,39 +173,42 @@ function Paint(canvas, wacom_plugin) {
 		
 		if (mouse_x!==undefined && mouse_y!==undefined) {
 			console.assert(false);
-			var cursor = tools[tool_cur].cursor;
+			//var cursor = tools[tool_cur].cursor;
 			//var d = this.brushBuffer.width*0.5;
 			//this.rc.drawImage(this.brushBuffer,mouse_x-d,mouse_y-d);//кружок радиуса кисти
 		}
 	}
-	//обновляет прямоугольную область, расширяемую радиусом. проверяет на выход за границы канваса
-	p.refreshRegionCoords = function(x0,y0,x1,y1,r,mouse_x,mouse_y) {
+	//обновляет прямоугольную область. проверяет на выход за границы канваса
+	p.refreshRegionCoords = function(x0,y0,x1,y1, mouse_x,mouse_y) {
+		var w, h;
 		if (x0 < x1) {w = x1-x0;} else {w = x0-x1; x0 = x1;}
 		if (y0 < y1) {h = y1-y0;} else {h = y0-y1; y0 = y1;}
-		x0 = Math.floor(x0-r);
-		y0 = Math.floor(y0-r);
-		w = Math.ceil(w+r*2);
-		h = Math.ceil(h+r*2);
-		if (x0 < 0) x0 = 0;
-		if (y0 < 0) y0 = 0;
-		if (x0+w > width) w = width-x0;
-		if (y0+h > height) h = height-y0;
+		x0 = x0 < 0 ? 0 : Math.floor(x0);
+		y0 = y0 < 0 ? 0 : Math.floor(y0);
+		w = x0+w > width ? width-x0 : Math.ceil(w);
+		h = y0+h > height ? height-y0 : Math.ceil(h);
 		if (w<=0 || h<=0) return;
 		this.refreshRegion(x0,y0,w,h,mouse_x,mouse_y);
+	}
+	//обновляет прямоугольную область, расширяемую радиусом. проверяет на выход за границы канваса
+	p.refreshRegionCoordsRadius = function(x0,y0,x1,y1,r, mouse_x,mouse_y) {
+		this.refreshRegionCoords(x0-r, y0-r, x1+r, y1+r, mouse_x, mouse_y);
 	}
 	
 	p.refreshRect = new Rect();
 	var frameDelta = 16; //ограничение кол-ва обновлений канваса в секунду (FPS = 1000/frameDelta)
 	var lastFrameTime = 0; //время последнего обновления канваса
 	
-	function tryToUpdate() {
+	p.tryToUpdate = function(mouse_x,mouse_y) {
 		var ct = new Date().getTime();
 		if (ct-lastFrameTime > frameDelta) {
 			var rect = p.refreshRect;
-			p.refreshRegionCoords(rect.x0,rect.y0, rect.x1,rect.y1, r+2, x,y);
-			rect.reset(x,y);
+			p.refreshRegionCoords(rect.x0,rect.y0, rect.x1,rect.y1, mouse_x,mouse_y);
+			rect.clear();
 			lastFrameTime = ct;
+			return true;
 		}
+		return false;
 	}
 	
 	
@@ -211,12 +219,12 @@ function Paint(canvas, wacom_plugin) {
 		PRESSURE: 2,
 		PREVENT: 4,
 		UPDATE_TIME: 8,
-		wrap: function(type, func, cancel_func, flags) {
+		wrap: function(tool, type, func, cancel_func, flags) {
 			var coords      = flags & this.COORDS;
 			var pressure    = flags & this.PRESSURE;
 			var prevent     = flags & this.PREVENT;
 			var update_time = flags & this.UPDATE_TIME;
-			return new Function("p",
+			return new Function("p", "tool",
 				 "return function(e) {"
 				+(update_time?"p.event_start_time = new Date().getTime();":"")
 				+(type == 0
@@ -379,10 +387,6 @@ function Paint(canvas, wacom_plugin) {
 		this.buffer.rc.clearRect(0,0,this.buffer.width,this.buffer.height);
 	}
 	
-	p.brushSetSize(2);
 	p.layer_id = 0;
-	p.brushSpriteUpdate();
-	p.toolSet(p.TOOL_BRUSH);
-	
 	p.connect();
 }

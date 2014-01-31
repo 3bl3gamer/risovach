@@ -6,6 +6,8 @@
 <script src="history.js"></script>
 <script src="image_transformer.js"></script>
 <script src="paint.js"></script>
+<script src="paint_tools.js"></script>
+<script src="paint_tools_history_handlers.js"></script>
 
 
 <script>
@@ -13,8 +15,8 @@
 //я сделаю свой консоль с логированием и эксепшенами
 function log(text) {div_log.innerHTML+=text+"</br>";}
 window.onerror = function(errorMsg, url, lineNumber) {
-	var msg = "Error happened on "+url+
-		"\non line "+lineNumber+":\n"+
+	var msg = "Error happened on <"+url+
+		"\n> on line "+lineNumber+":\n"+
 		errorMsg;
 	log(msg);
 	//XHRнуть бы тут куда-нибудь
@@ -49,24 +51,27 @@ window.onload = function() {
 	var rc = canvas.getContext("2d");
 	
 	paint = new Paint(canvas);
-	var img_transf = new ImageTransformer(
-		paint, 0, /*server data from*/"h1ji3-pi-black_small.jpg"/*server data to*/, //http://www.raspberrypi.org/wp-content/uploads/2011/11/h1ji3-pi-black.jpg
-		function() {paint.refresh();});
+	var brush = new Brush(paint);
+	brush.size = 5;
+	paint.toolsAdd(brush);
+	paint.toolSet("brush");
+	//var img_transf = new ImageTransformer(
+	//	paint, 0, /*server data from*/"h1ji3-pi-black_small.jpg"/*server data to*/, //http://www.raspberrypi.org/wp-content/uploads/2011/11/h1ji3-pi-black.jpg
+	//	function() {paint.refresh();});
 	//paint.setLayerObj(0, img_transf);
 	
 	
 	//создание кнопок
-	for (var i=0; i<paint.layer.length; i++) {
+	paint.forEachLayer(function(id, buf) {
 		var b = document.createElement('button');
 		//вообще, так как-то криво. зато просто и работает
-		var buf = paint.getLayerBuffer(i);
 		buf.style.width  = "128px";
 		buf.style.height = "64px";
 		b.appendChild(buf);
-		b.onclick = (function(i) { return function() {paint.layer_id=i;} })(i);
+		b.onclick = function() {paint.layer_id = id;};
 		buttons.appendChild(b);
 		buttons.appendChild(document.createElement('br'));
-	}
+	});
 	
 	var p = new ColorPicker(picker, "color_picker_2.0/");
 	p.setRGB(0,0,0);
@@ -74,7 +79,7 @@ window.onload = function() {
 		color.style.background = this.getHTML();
 	};
 	p.onfinalchange = function() {
-		paint.brushSetColor(this.getHTML());
+		paint.colorHTML = this.getHTML();
 	};
 	paint.onColorPick = function(c) {p.setRGB(c[0]/255, c[1]/255, c[2]/255)}
 }
