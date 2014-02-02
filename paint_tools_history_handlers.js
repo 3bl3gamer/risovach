@@ -148,12 +148,14 @@ BrushHistoryStep.prototype.redo = function(buf) {
 //end -> params and path -> calc rects -> save rects -> return Step
 
 
-function MergeHistoryStep(paint, merge, upper_layer_id) {
+function MergeHistoryStep(paint, merge, mode, layer_id, upper_layer_id) {
 	var s = this;
-	s.upper_layer_id = upper_layer_id;
+	s.merge = merge;
+	s.mode = mode;
 	s.data = null;
-	s.layer_id = paint.layer_id;
-	this.capture(paint.getLayerBuffer());
+	s.layer_id = layer_id;
+	s.upper_layer_id = upper_layer_id;
+	this.capture(paint.getLayerBuffer(layer_id));
 }
 ////устанавливает слой
 //MergeHistoryStep.prototype.setLayer = function(dest_layer) {
@@ -163,12 +165,18 @@ function MergeHistoryStep(paint, merge, upper_layer_id) {
 //MergeHistoryStep.prototype.getLayer = function() {
 //	return this.dest_layer;
 //}
-MergeHistoryStep.prototype.capture = function(dest_buf) {
-	this.data = dest_buf.rc.getImageData(0,0,dest_buf.width,dest_buf.height);
+MergeHistoryStep.prototype.capture = function(buf) {
+	this.data = buf.rc.getImageData(0,0,buf.width,buf.height);
 }
-MergeHistoryStep.prototype.undo = function(dest_buf) {
-	dest_buf.rc.putImageData(this.data,0,0);
+MergeHistoryStep.prototype.undo = function(buf) {
+	buf.rc.putImageData(this.data,0,0);
 }
 MergeHistoryStep.prototype.redo = function(buf) {
-	//paint.onRestoreMerge(this.dest_layer,this.src_layer);
+	switch(this.mode) {
+	case "draw":
+		this.merge.simpleDraw(this.layer_id, this.upper_layer_id);
+		break;
+	default:
+		console.error("Wrong mode"); //DEBUG
+	}
 }

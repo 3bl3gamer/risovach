@@ -309,6 +309,11 @@ function Picker(paint) {
 	function RGB3i_to_HTMLrgb(c) {
 		return "rgb("+c[0]+","+c[1]+","+c[2]+")";
 	}
+	function RGB3i_to_HTML7c(arr) {
+		var str = "#";
+		for (var i=0; i<3; i++) str += arr[i]>15 ? arr[i].toString(16) : "0"+arr[i].toString(16);
+		return str;
+	}
 	Object.defineProperties(p, {
 		"RGB3i": {get: function() {
 			return lastColor;
@@ -320,9 +325,7 @@ function Picker(paint) {
 			return RGB3i_to_HTMLrgb(lastColor);
 		}},
 		"HTML7c": {get: function() {
-			var str = "#";
-			for (var i=0; i<3; i++) str += arr[i]>15 ? arr[i].toString(16) : "0"+arr[i].toString(16);
-			return str;
+			return RGB3i_to_HTML7c(lastColor);
 		}}
 	});
 	
@@ -370,10 +373,15 @@ function Merge(paint) {
 	m.mergeCurrentWith = function(layer_id) {
 		throw new Error("Not yet.");
 	}
+	m.simpleDraw = function(layer_id, upper_layer_id) {
+		var lower = paint.getLayerBuffer(layer_id);
+		var upper = paint.getLayerBuffer(upper_layer_id);
+		lower.rc.drawImage(upper, 0,0);
+	}
 	m.drawCurrentLayerOn = function(layer_id) {
 		if (paint.historyEnabled)
-			paint.history.add(new MergeHistoryStep(paint, paint.layer_id));
-		paint.getLayerBuffer(layer_id).rc.drawImage(paint.getLayerBuffer(), 0,0);
+			paint.history.add(new MergeHistoryStep(paint, this, "draw", layer_id, paint.layer_id));
+		this.simpleDraw(layer_id, paint.layer_id);
 		paint.refresh();
 	}
 }
