@@ -8,7 +8,7 @@ function Brush(paint/*, disableHistory*/) {
 	var color = ['#000000',1];
 	Object.defineProperty(b, "color", {
 		get: function() {return color.slice();},
-		set: function(v) {color[0] = v[0]; color[1] = v[1]; spriteUpdate();}
+		set: function(v) {color[1] = v[1]; if (color[0] == v[0]) return; color[0] = v[0]; spriteUpdate();}
 	});
 	Object.defineProperty(b, "colorHTML", {
 		get: function() {return color[0];},
@@ -35,11 +35,13 @@ function Brush(paint/*, disableHistory*/) {
 	var params = []; //параметры [слой,размер,блюр,шаг,цвет,форма]
 	
 	var cursorBuffer = createBuffer(sizeMax*2+4);
+	b.cursor = {img: cursorBuffer, xo: cursorBuffer.width/2, yo: cursorBuffer.height/2};
 	var spriteSizeStep = 2;//2->   1,2,  4,      8,    16
 	var sprite = [];       //2-> 1,1,2,4,4,8,8,8,8,...
 	//полный радиус кисти. по сути - ребро bounding box'а пополам
-	function getTotalRadius(radius) {
-		return (radius !== undefined ? radius : size)*(1+blur);
+	function getTotalRadius(exSize, exBlur) {
+		return (exSize !== undefined ? exSize : size) *
+		       (1 + (exBlur !== undefined ? exBlur : blur));
 	}
 	
 	Object.defineProperty(b, "blur", {
@@ -125,8 +127,7 @@ function Brush(paint/*, disableHistory*/) {
 	}
 	
 	//рисует точку спрайтом
-	function drawDot(x,y,pressure) {
-		var rc = paint.buffer.rc;
+	function drawDot(rc, x,y,pressure) {
 		rc.globalAlpha = color[1];
 		var pSize = size * pressure;
 		var buf = sprite[pSize<<0];
@@ -138,8 +139,7 @@ function Brush(paint/*, disableHistory*/) {
 	}
 	
 	//рисует линию спрайтом
-	function drawLine(x0,y0,x1,y1,p0,p1) {
-		var rc = paint.buffer.rc;
+	function drawLine(rc, x0,y0,x1,y1,p0,p1) {
 		rc.globalAlpha = color[1];
 		var d = getTotalRadius(), dr;
 		var d2 = d*2, d2r;
@@ -170,27 +170,29 @@ function Brush(paint/*, disableHistory*/) {
 	
 	
 	//начало рисования штриха
+	b.simpleStart = function(rc, x, y, pressure) {
+		drawDot(rc, x, y, pressure);
+		stepLeft = step;
+		lastX = x;
+		lastY = y;
+		lastPressure = pressure;
+	}
 	b.start = function(x,y,pressure) {
 		if (isDrawing) return false;
 		
 		if (isHistoryEnabled = paint.historyEnabled) {
-			//this.params = this.getParams();//???
-			path = [x,y,pressure];
+			path = [x, y, pressure];
 		}
 		
-		drawDot(x,y,pressure);
-		stepLeft = step;
+		this.simpleStart(paint.buffer.rc, x, y, pressure);
 		isDrawing = true;
 		
 		if (paint.autoUpdate) {
 			var r = getTotalRadius();
-			paint.refreshRect.reset(x,y,r);
-			paint.tryToUpdate(x,y);
+			paint.refreshRect.extend_r(x,y,r+2);
+			if (paint.tryToUpdate(x,y))
+				paint.refreshRect.reset_r(x,y,r+2);//TODO: ну вообще неочень. дважды.
 		}
-		
-		lastX = x;
-		lastY = y;
-		lastPressure = pressure;
 		
 		return true;
 	}
@@ -202,45 +204,46 @@ function Brush(paint/*, disableHistory*/) {
 		return true;
 	}
 	//шаг рисования
+	b.simpleMove = function(rc, x, y, pressure) {
+		var dx=x-lastX, dy=y-lastY, len=Math.sqrt(dx*dx+dy*dy), dp;
+		if (len > stepLeft) {
+			dx *= stepLeft/len;
+			dy *= stepLeft/len;
+			dp = (pressure-lastPressure)*stepLeft/len;
+			stepLeft = step - drawLine(
+				rc, lastX+dx,lastY+dy, x,y, lastPressure+dp,pressure);
+		} else if (len == stepLeft) {
+			drawDot(rc, x, y, pressure);
+			stepLeft = step;
+		} else {
+			stepLeft -= len;
+		}
+		lastX = x;
+		lastY = y;
+		lastPressure = pressure;
+	}
 	b.move = function(x,y,pressure) {
 		if (isDrawing) {
 			if (isHistoryEnabled)
 				path.push(x,y,pressure);
-			
-			var dx=x-lastX, dy=y-lastY, len=Math.sqrt(dx*dx+dy*dy), dp;
-			if (len > stepLeft) {
-				dx *= stepLeft/len;
-				dy *= stepLeft/len;
-				dp = (pressure-lastPressure)*stepLeft/len;
-				stepLeft = step - drawLine(
-					lastX+dx,lastY+dy, x,y, lastPressure+dp,pressure);
-			} else if (len == stepLeft) {
-				drawDot(x,y,pressure);
-				stepLeft = step;
-			} else {
-				stepLeft -= len;
-			}
+			this.simpleMove(paint.buffer.rc, x, y, pressure);
 		}
 		
 		if (paint.autoUpdate) {
 			var r = getTotalRadius();
-			paint.refreshRect.extend_r(x,y,r);
-			if (paint.tryToUpdate(x,y,r))
-				paint.refreshRect.extend_r(x,y,r);//TODO: чёт как-то неочень
+			paint.refreshRect.extend_r(x,y,r+2);//+2, т.к. курсор-кружок
+			if (paint.tryToUpdate(x,y))
+				paint.refreshRect.reset_r(x,y,r+2);//TODO: чёт как-то неочень
 		}
-		
-		lastX = x;
-		lastY = y;
-		lastPressure = pressure;
 		
 		return isDrawing;
 	}
-	//p.brushMoveOnEvent = function(e) {e = p.eventGetCoords(e); p.brushMove(e[0], e[1], getPressure());}
+	//Зе Енд
 	b.end = function() {
 		if (!isDrawing) return false;
 		
 		if (isHistoryEnabled && paint.historyEnabled) //вдруг у paint'а история успела отключиться
-			paint.history.add(new BrushHistoryStep(paint, getParams(), path));
+			paint.history.add(new BrushHistoryStep(paint, this, getParams(), path));
 			//this.history.addPath(this.layer,[this.getParams(),this.path],this.brushGetTotalRadius());
 		
 		paint.applyBuffer();
@@ -249,6 +252,7 @@ function Brush(paint/*, disableHistory*/) {
 		
 		return true;
 	}
+	
 	
 	//упаковка всех текущих параметров
 	function getParams() {
@@ -268,7 +272,7 @@ function Brush(paint/*, disableHistory*/) {
 		step = params.step;
 		b.color = params.color;
 		//b.shape = params.shape;
-		//b.mode = params.mode;
+		b.mode = params.mode;
 	}
 	
 	b.modes = ["brush", "eraser"];
@@ -291,6 +295,9 @@ function Brush(paint/*, disableHistory*/) {
 		'DOMMouseScroll': [ canvas, function(e) {b.size -= e.detail;         e.preventDefault();}]
 	};
 	b.events = events;
+	b.getParams = getParams;
+	b.setParams = setParams;
+	b.getTotalRadius = getTotalRadius;
 	spriteUpdate();
 }
 
@@ -298,11 +305,32 @@ function Picker(paint) {
 	var p = this;
 	var canvas = paint.canvas;
 	var isDrawing = false;
+	var lastColor = null;
+	function RGB3i_to_HTMLrgb(c) {
+		return "rgb("+c[0]+","+c[1]+","+c[2]+")";
+	}
+	Object.defineProperties(p, {
+		"RGB3i": {get: function() {
+			return lastColor;
+		}},
+		"RGB3f": {get: function() {
+			return [lastColor[0]/255, lastColor[1]/255, lastColor[2]/255];
+		}},
+		"HTMLrgb": {get: function() {
+			return RGB3i_to_HTMLrgb(lastColor);
+		}},
+		"HTML7c": {get: function() {
+			var str = "#";
+			for (var i=0; i<3; i++) str += arr[i]>15 ? arr[i].toString(16) : "0"+arr[i].toString(16);
+			return str;
+		}}
+	});
 	
-	p.onColorPick = function(color) {log(color);} //каллбек. сработает при получении цвета пипеткой
+	p.onColorPick = function() {log(color);} //каллбек. сработает при получении цвета пипеткой
+	p.onFinalColorPick = function() {log(color);} //каллбек. сработает при отпускании пипетки
 	function pick(x,y) {
 		var data = paint.canvas.rc.getImageData(x,y,2,2).data;
-		p.onColorPick([data[0],data[1],data[2],data[3]]);
+		p.onColorPick(lastColor = [data[0],data[1],data[2],data[3]]);
 	}
 	p.start = function(x,y) {
 		if (isDrawing) return false;
@@ -318,23 +346,23 @@ function Picker(paint) {
 	p.end = function() {
 		if (!isDrawing) return false;
 		isDrawing = false;
+		this.onFinalColorPick(lastColor);
 		return true;
 	}
 	
 	p.modes = ["picker"];
 	p.mode = "picker";
 	
+	var w = paint.SimpleEventWrapper;
 	var events = {
-		'mousedown': [ canvas,   paint.wrap(0,"start","", true,false,true,true)],
-		'mousemove': [ document, paint.wrap(0,"move", "", true) ],
-		'mouseup':   [ document, paint.wrap(0,"end",  "") ],
-		'touchstart': [ canvas,   paint.wrap(1,"start","", true,false,true,true)],
-		'touchmove':  [ document, paint.wrap(1,"move", "", true) ],
-		'touchend':   [ document, paint.wrap(1,"end",  "") ]
+		'mousedown': [ canvas,   w.wrap(p, 0,"start","", w.COORDS | w.PRESSURE | w.PREVENT | w.UPDATE_TIME) ],
+		'mousemove': [ document, w.wrap(p, 0,"move", "", w.COORDS) ],
+		'mouseup':   [ document, w.wrap(p, 0,"end",  "") ],
+		'touchstart': [ canvas,   w.wrap(p, 1,"start","", w.COORDS | w.PRESSURE | w.PREVENT | w.UPDATE_TIME) ],
+		'touchmove':  [ document, w.wrap(p, 1,"move", "", w.COORDS) ],
+		'touchend':   [ document, w.wrap(p, 1,"end",  "") ],
 	};
 	p.events = events;
-	
-	spriteUpdate();
 }
 
 function Merge(paint) {

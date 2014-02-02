@@ -1,43 +1,39 @@
-﻿function History(paintObj) {
-	var h=this;
-	h.paint=paintObj;
+﻿function History(paint) {
+	var h = this;
 	
-	h.historyLen=0;//текущая длина истории (учитывая undo)
-	h.step=[];//массив шагов
+	h.historyLen = 0;//текущая длина истории (учитывая undo)
+	h.step = [];//массив шагов
 	
 	
 	//добавляет в историю шаг
-	h.add=function(newStep) {
-		if (this.historyLen != this.step.length) //отбрасывает отменённое (есть есть)
+	h.add = function(newStep) {
+		if (this.historyLen !== this.step.length) //отбрасывает отменённое (есть есть)
 			this.step.splice(this.historyLen, this.step.length-this.historyLen);
 		//newStep.capture();
 		this.step.push(newStep);
 		this.historyLen++;
-	}
+	};
 	
 	//получает массив слоёв, выбирает нужный,
 	//восстанавливает участки в него
-	h.undo=function(buffer_array) {
-		if (this.historyLen==0) return;
-		this.historyLen--;
-		var s=this.step[this.historyLen];
-		var layerId=s.getLayer();
-		s.restore(buffer_array[layerId]);
-	}
+	h.undo = function(buffers) {
+		if (this.historyLen === 0) return;
+		var s = this.step[--this.historyLen];
+		var layer_id = s.layer_id;
+		s.undo(buffers[layer_id]);
+	};
 	//если передан номер слоя, делает redo в слой с этим номером
 	//иначе - в слой, записанный в параметрах
-	h.redo=function(forceLayer) {
-		if (this.historyLen==this.step.length) return false;
-		var s=this.step[this.historyLen++];
-		if (forceLayer!==undefined) {
-			s.setLayer(forceLayer);
-			s.capture(this.paint.layer[forceLayer]);
+	h.redo = function(forceLayer) {
+		if (this.historyLen === this.step.length) return false;
+		var s = this.step[this.historyLen++];
+		if (forceLayer !== undefined) {
+			s.layer_id = forceLayer;
+			s.capture(paint.getLayerBuffer(forceLayer));
 		}
-		s.paintRestore(this.paint);
+		s.redo(paint.getLayerBuffer(s.layer_id));
 		return true;
-	}
-	
-	return h;
+	};
 }
 
 

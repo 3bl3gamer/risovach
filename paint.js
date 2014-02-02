@@ -1,6 +1,9 @@
 ﻿//TODO: (test) buffer layers to one (what?)
-//TODO: total radius to params
 //TODO: do not redraw brush visual circle when restoring from history
+//TODO: рисуется всё через временный слой, а восстанавливается сразу на нужный
+//      теоретически можно огрести проблем и расхождений
+//      проверить, насколько медленнее будет восстановление через временный слой
+//TODO: вынести цветоманипуляции в отдельный файл (а м.б. и нет)
 
 //просто линия между точками
 CanvasRenderingContext2D.prototype.line = function(x0,y0,x1,y1) {
@@ -172,10 +175,9 @@ function Paint(canvas, wacom_plugin) {
 			rc.drawImage(layers[i], x,y,w,h, x,y,w,h);
 		
 		if (mouse_x!==undefined && mouse_y!==undefined) {
-			console.assert(false);
-			//var cursor = tools[tool_cur].cursor;
-			//var d = this.brushBuffer.width*0.5;
-			//this.rc.drawImage(this.brushBuffer,mouse_x-d,mouse_y-d);//кружок радиуса кисти
+			var cursor = tool.cursor;
+			if (cursor)
+				rc.drawImage(cursor.img, mouse_x-cursor.xo, mouse_y-cursor.yo);
 		}
 	}
 	//обновляет прямоугольную область. проверяет на выход за границы канваса
@@ -262,6 +264,7 @@ function Paint(canvas, wacom_plugin) {
 	
 	//TODO: большое: вынести кисточку и пипетку в отдельные объекты
 	//      todoing...
+	//      todoing.....
 	//тулзы
 	var tools = {};//{"режим": <объект, реализующий режим>}
 	var tool = null;
@@ -299,17 +302,21 @@ function Paint(canvas, wacom_plugin) {
 	
 	
 	p.undo = function() {
-		if (!historyEnabled) return;
-		history.undo(layers);
-		refresh();
+		if (!this.historyEnabled) return;
+		this.history.undo(layers);
+		this.refresh(); //TODO: only updated
 	}
 	p.redo = function() {
-		if (!historyEnabled) return;
-		history.redo();
-		refresh();
+		if (!this.historyEnabled) return;
+		//this.historyEnabled = false;
+		//this.autoUpdate = false;
+		this.history.redo();
+		//this.historyEnabled = true;
+		//this.autoUpdate = true;
+		this.refresh(); //TODO: only updated
 	}
 	p.redoAll = function(forceLayer) {
-		if (!historyEnabled) return;
+		if (!this.historyEnabled) return;
 		while (this.history.redo(forceLayer)) {};
 		this.refresh();
 	}
@@ -383,8 +390,11 @@ function Paint(canvas, wacom_plugin) {
 //		this.history.add(step);
 //	}
 	p.applyBuffer = function() {
-		this.getLayerBuffer().rc.drawImage(this.buffer,0,0);//TODO: draw only changed
-		this.buffer.rc.clearRect(0,0,this.buffer.width,this.buffer.height);
+		var lrc = this.getLayerBuffer().rc;
+		if (!(lrc.globalCompositeOperation = tool.blendMode)) return;
+		lrc.drawImage(buffer,0,0);//TODO: draw only changed
+		lrc.globalCompositeOperation = "source-over";
+		this.buffer.rc.clearRect(0,0,buffer.width,buffer.height);
 	}
 	
 	p.layer_id = 0;

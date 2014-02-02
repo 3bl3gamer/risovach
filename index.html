@@ -13,7 +13,7 @@
 <script>
 
 //я сделаю свой консоль с логированием и эксепшенами
-function log(text) {div_log.innerHTML+=text+"</br>";}
+function log(text) {div_log.innerHTML = text+"</br>"+div_log.innerHTML;}
 window.onerror = function(errorMsg, url, lineNumber) {
 	var msg = "Error happened on <"+url+
 		"\n> on line "+lineNumber+":\n"+
@@ -46,15 +46,21 @@ console.warn = function() {
 	prevConsoleWarnFunc.apply(console, arguments);
 }
 
-var paint;
+var paint, merge;
 window.onload = function() {
 	var rc = canvas.getContext("2d");
-	
 	paint = new Paint(canvas);
+	
 	var brush = new Brush(paint);
 	brush.size = 5;
 	paint.toolsAdd(brush);
+	
+	var picker = new Picker(paint);
+	paint.toolsAdd(picker);
+	
+	merge = new Merge(paint);
 	paint.toolSet("brush");
+	
 	//var img_transf = new ImageTransformer(
 	//	paint, 0, /*server data from*/"h1ji3-pi-black_small.jpg"/*server data to*/, //http://www.raspberrypi.org/wp-content/uploads/2011/11/h1ji3-pi-black.jpg
 	//	function() {paint.refresh();});
@@ -73,15 +79,17 @@ window.onload = function() {
 		buttons.appendChild(document.createElement('br'));
 	});
 	
-	var p = new ColorPicker(picker, "color_picker_2.0/");
-	p.setRGB(0,0,0);
-	p.onchange = function() {
-		color.style.background = this.getHTML();
+	var cp = new ColorPicker(picker_div, "color_picker_2.0/");
+	cp.setRGB(0,0,0);
+	cp.onchange = function() {
+		color_div.style.background = this.getHTML();
 	};
-	p.onfinalchange = function() {
-		paint.colorHTML = this.getHTML();
+	cp.onfinalchange = function() {
+		brush.colorHTML = this.getHTML();
+		log("picked "+this.getHTML());
 	};
-	paint.onColorPick = function(c) {p.setRGB(c[0]/255, c[1]/255, c[2]/255)}
+	picker.onColorPick = function() {var c=this.RGB3f; cp.setRGB(c[0], c[1], c[2], true);}
+	picker.onFinalColorPick = function() {brush.colorHTML = this.HTMLrgb;}
 }
 
 function send() {
@@ -111,16 +119,16 @@ function send() {
 				                       border: 1px solid #000; background:url(back.png);"
 				width=800 height=400>Обновите браузер</canvas></td>
 		<td><div id="buttons"></div>
-		<button onclick="paint.redoAll(paint.layer_cur);">Redo all</button>
-		<button onclick="paint.merge(1);">Merge</button>
+		<button onclick="paint.redoAll(paint.layer_id);">Redo all</button>
+		<button onclick="merge.drawCurrentLayerOn(1);">Merge</button>
 		<br>
-		<button onclick="paint.toolSet(paint.TOOL_BRUSH);">Brush</button>
-		<button onclick="paint.toolSet(paint.TOOL_ERASER);">Eraser</button>
-		<button onclick="paint.toolSet(paint.TOOL_PICKER);">Picker</button>
+		<button onclick="paint.toolSet('brush');">Brush</button>
+		<button onclick="paint.toolSet('eraser');">Eraser</button>
+		<button onclick="paint.toolSet('picker');">Picker</button>
 		<button onclick="send()">Send</button></td>
 		<td>
-		<div id="picker"></div>
-		<div id="color" style="width:64; height:64; outline:1px solid white;"></div>
+		<div id="picker_div"></div>
+		<div id="color_div" style="width:64; height:64; outline:1px solid white;"></div>
 		</td>
 	</tr>
 </table>

@@ -1,5 +1,6 @@
-function BrushHistoryStep(paint, params, path) {
+function BrushHistoryStep(paint, brush, params, path) {
 	var s = this;
+	s.brush = brush;
 	s.region = [];//массив из getImageData
 	s.regionPos = [];//массив параметров прямоугольников в region вида [x0,y0,w0,h0, x1,y1,w1,h2, ...]
 	s.params = params;
@@ -86,7 +87,7 @@ BrushHistoryStep.prototype.rectAdd = function(buf,left,top,right,bottom) {
 //расчитывает, какими прямоугольниками покрыть весь штрих, сохраняет
 BrushHistoryStep.prototype.addPathAndCapture = function(buf, params, path) {
 	if (path.length == 0) {console.error("tried to add empty path to BHS"); return;} //DEBUG
-	var r = params.size;
+	var r = this.brush.getTotalRadius(params.size, params.blur);
 	
 	var left=path[0], top=path[1], right=path[0], bottom=path[1];
 	for (var i=3; i<path.length; i+=3) {
@@ -124,8 +125,18 @@ BrushHistoryStep.prototype.undo = function(buf) {
 	}
 }
 
-BrushHistoryStep.prototype.redo = function(paint) {
-	//paint.onRestorePath(this.path);
+//повторение
+BrushHistoryStep.prototype.redo = function(buf) {
+	var brush = this.brush;
+	var path = this.path;
+	var params = brush.getParams();
+	brush.setParams(this.params);
+	buf.rc.globalCompositeOperation = brush.blendMode;
+	brush.simpleStart(buf.rc, path[0], path[1], path[2]);
+	for (var i=3; i<path.length; i+=3)
+		brush.simpleMove(buf.rc, path[i], path[i+1], path[i+2]);
+	buf.rc.globalCompositeOperation = "source-over";
+	brush.setParams(params);
 }
 
 //function BrushHistoryHandler(paint, brush) {
@@ -137,7 +148,7 @@ BrushHistoryStep.prototype.redo = function(paint) {
 //end -> params and path -> calc rects -> save rects -> return Step
 
 
-function MergeHistoryStep(paint, upper_layer_id) {
+function MergeHistoryStep(paint, merge, upper_layer_id) {
 	var s = this;
 	s.upper_layer_id = upper_layer_id;
 	s.data = null;
@@ -158,6 +169,6 @@ MergeHistoryStep.prototype.capture = function(dest_buf) {
 MergeHistoryStep.prototype.undo = function(dest_buf) {
 	dest_buf.rc.putImageData(this.data,0,0);
 }
-MergeHistoryStep.prototype.redo=function(paint) {
-	paint.onRestoreMerge(this.dest_layer,this.src_layer);
+MergeHistoryStep.prototype.redo = function(buf) {
+	//paint.onRestoreMerge(this.dest_layer,this.src_layer);
 }

@@ -102,13 +102,13 @@ function ColorPicker(host, img_path) {
 	}
 	
 	//геттеры-сеттеры
-	this.setRGB = function(r, g, b) {
+	this.setRGB = function(r, g, b, silent) {
 		var hsl = RGB2HSL(r, g, b);
 		hue = hsl[0];
 		sat = hsl[1];
 		lum = hsl[2];
 		updateAll();
-		if (p.onfinalchange) p.onfinalchange();
+		if (p.onfinalchange && !silent) p.onfinalchange();
 	}
 	this.getRGB = function() {
 		return HSL2RGB(hue, sat, lum);
