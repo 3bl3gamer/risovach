@@ -306,12 +306,12 @@ function Picker(paint) {
 	var canvas = paint.canvas;
 	var isDrawing = false;
 	var lastColor = null;
-	function RGB3i_to_HTMLrgb(c) {
+	function RGB3iv_to_HTMLrgb(c) {
 		return "rgb("+c[0]+","+c[1]+","+c[2]+")";
 	}
-	function RGB3i_to_HTML7c(arr) {
+	function RGB3iv_to_HTML7c(c) {
 		var str = "#";
-		for (var i=0; i<3; i++) str += arr[i]>15 ? arr[i].toString(16) : "0"+arr[i].toString(16);
+		for (var i=0; i<3; i++) str += c[i]>15 ? c[i].toString(16) : "0"+c[i].toString(16);
 		return str;
 	}
 	Object.defineProperties(p, {
@@ -322,10 +322,10 @@ function Picker(paint) {
 			return [lastColor[0]/255, lastColor[1]/255, lastColor[2]/255];
 		}},
 		"HTMLrgb": {get: function() {
-			return RGB3i_to_HTMLrgb(lastColor);
+			return RGB3iv_to_HTMLrgb(lastColor);
 		}},
 		"HTML7c": {get: function() {
-			return RGB3i_to_HTML7c(lastColor);
+			return RGB3iv_to_HTML7c(lastColor);
 		}}
 	});
 	

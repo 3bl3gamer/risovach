@@ -4,6 +4,7 @@
 //      теоретически можно огрести проблем и расхождений
 //      проверить, насколько медленнее будет восстановление через временный слой
 //TODO: вынести цветоманипуляции в отдельный файл (а м.б. и нет)
+//TODO: разобраться с historyEnabled и history.add
 
 //просто линия между точками
 CanvasRenderingContext2D.prototype.line = function(x0,y0,x1,y1) {
@@ -96,7 +97,6 @@ function Paint(canvas, wacom_plugin) {
 	
 	//параметры и методы слоёв
 	var layers = []; //массив слоёв (объектов canvas)
-	//var layer_obj = []; //некий привязанный к слою объект
 	var layer_numb = 4; //количество слоёв
 	for (var i=0;i<layer_numb;i++) //каждому слою по буфферу
 		layers.push(createBuffer(width, height));
@@ -104,7 +104,7 @@ function Paint(canvas, wacom_plugin) {
 	
 	function getLayerBuffer(id) {//возвращает буффер указанного слоя (текущий по умолчанию)
 		if (id === undefined) return layers[layer_id_cur];
-		if (id<0 || id>=this.layer_numb) throw new Error("Wrong layer id.");
+		if (id<0 || id>=layer_numb) throw new Error("Wrong layer id.");
 		return layers[id];
 	}
 	p.getLayerBuffer = getLayerBuffer;
@@ -120,23 +120,30 @@ function Paint(canvas, wacom_plugin) {
 		set: function(id) {
 				id = toRange(0, id, layer_numb-1);
 				if (id == layer_id_cur) return;
+				if (tool && tool.onLayerChange) tool.onLayerChange(layer_id_cur, id);
 				
-				/*var obj = layer_obj[layer_id_cur];
-				if (obj !== undefined) {
-					toolSet(p.TOOL_BRUSH);
-					obj.disconnect(canvas);
+				/*var curObj = layers[layer_id_cur].extObj;
+				var newObj = layers[id].extObj;
+				
+				if (curObj) {
+					handlersDisconnect(curObj.events);
+					if (!newObj)
+						handlersConnect(tool.events);
 				}
-				obj = layer_obj[id];
-				if (obj !== undefined) {
-					toolDisconnect();
-					obj.connect(canvas);
+				
+				if (newObj) {
+					handlersDisconnect(tool.events);
+					handlersConnect(newObj.events);
 				}*/
 				
 				layer_id_cur = id;
 			}
 	});
-	/*function setLayerObj(id, obj) {
-		layer_obj[id] = obj;
+	/*p.setLayerObj = function(id, obj) {
+		layers[id].extObj = obj;
+		if (layer_id_cur != id) return;
+		if (tool) handlersDisconnect(tool.events);
+		handlersConnect(obj.events);
 	}*/
 	
 	p.autoUpdate = true;//автоматическая перерисовка при рисовании чего-то (отключается при восстановлении из истории)
@@ -266,20 +273,26 @@ function Paint(canvas, wacom_plugin) {
 	//      todoing...
 	//      todoing.....
 	//тулзы
+	//var nullTool = {events:[], modes:["dev-null"], mode:"dev-null"}; //заглушка, чтоб не писать везде if (tool)
 	var tools = {};//{"режим": <объект, реализующий режим>}
 	var tool = null;
+	var pushedMode = null;
+	//toolsAdd(nullTool);
+	//toolSet(nullTool.mode);
 	p.toolsAdd = function(obj) {
 		var modes = obj.modes;
 		for (var i=0; i<modes.length; i++)
 			tools[modes[i]] = obj;
 	}
-	
 	//устанавливает инструмент
 	p.toolSet = function(mode) {
 		if (!(mode in tools)) return;
+		if (tool && tool.mode == mode) return;
 		
+		if (tool) pushedMode = tool.mode;
 		var newTool = tools[mode];
 		newTool.mode = mode;
+		if (tool && tool.onToolChange) tool.onToolChange(tool, newTool);
 		if (newTool != tool) { //группа поменялась? перключаем обработчики
 			if (tool) handlersDisconnect(tool.events);
 			handlersConnect(newTool.events);
@@ -287,18 +300,13 @@ function Paint(canvas, wacom_plugin) {
 		}
 	}
 	p.toolDisconnect = function() {
-		if (!tool) return;
 		handlersDisconnect(tool.events);
 		tool = null;
 	}
-	
-	
-	/*p.merge = function(src_buf_id) {
-		if (this.historyEnabled)
-			this.history.addMerge(layers, layer_id_cur, src_buf_id);
-		layers[layer_id_cur].rc.drawImage(layers[src_buf_id], 0,0);
-		this.refresh();
-	}*/
+	p.toolUsePrevious = function() {
+		if (!pushedMode || pushedMode==tool.mode) return;
+		p.toolSet(pushedMode);
+	}
 	
 	
 	p.undo = function() {
@@ -320,40 +328,6 @@ function Paint(canvas, wacom_plugin) {
 		while (this.history.redo(forceLayer)) {};
 		this.refresh();
 	}
-	//rc.globalCompositeOperation = Math.random()>0.5?"source-over":"destination-out";
-	//вызываемая извне(например, из истории) функция, отрисовывающая путь
-	//параметры - [слой, размер, блюр, полный радиус, шаг, цвет, форма, режим]
-	//путь - [x0,y0,p0, x1,y1,p1, ...]
-	p.onRestorePath = function(params, path) {
-		var _p = this.getParams();
-		this.setParams(params);
-		
-		this.historyEnabled = false;
-		this.autoUpdate = false;
-		this.brushStart(path[0],path[1],path[2]);
-		for (var i=3; i<path.length; i+=3) {
-			this.brushMove(path[i],path[i+1],path[i+2]);
-		}
-		this.brushEnd();
-		this.setParams(_p);
-		this.historyEnabled = true;
-		this.autoUpdate = true;
-		
-		this.refresh();
-	}
-	p.onRestoreMerge = function(dest_buf_id,src_buf_id) {
-		this.historyEnabled = false;
-		var t = layer_id_cur;
-		layer_id_cur = dest_buf_id;
-		
-		this.merge(src_buf_id);
-		
-		layer_id_cur = t;
-		this.historyEnabled = true;
-		
-		this.refresh();
-	}
-	
 	
 	
 	p.kbdEvent = function(e) {
@@ -391,7 +365,8 @@ function Paint(canvas, wacom_plugin) {
 //	}
 	p.applyBuffer = function() {
 		var lrc = this.getLayerBuffer().rc;
-		if (!(lrc.globalCompositeOperation = tool.blendMode)) return;
+		if (tool.blendMode)
+			lrc.globalCompositeOperation = tool.blendMode;
 		lrc.drawImage(buffer,0,0);//TODO: draw only changed
 		lrc.globalCompositeOperation = "source-over";
 		this.buffer.rc.clearRect(0,0,buffer.width,buffer.height);

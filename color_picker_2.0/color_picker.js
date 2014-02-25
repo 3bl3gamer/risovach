@@ -58,7 +58,7 @@ function ColorPicker(host, img_path) {
 	
 	//функции для конвертирования цветов
 	var P3 = 0.33333333, P6 = 1-P3;
-	function HSL2RGB(h, s, l) {
+	function HSL3f_to_RGB3fv(h, s, l) {
 		var m1, m2;
 		m2 = (l <= 0.5) ? l * (s + 1) : l + s - l*s;
 		m1 = l * 2 - m2;
@@ -72,17 +72,17 @@ function ColorPicker(host, img_path) {
 		if (h * 3 < 2) return m1 + (m2 - m1) * (P6 - h) * 6;
 		return m1;
 	}
-	function RGB2HTML(r, g, b) {
+	function RGB3f_to_HTMLrgb(r, g, b) {
 		return "rgb("+((r*256+0.5)|0)+","+
 		              ((g*256+0.5)|0)+","+
 		              ((b*256+0.5)|0)+")";
 	}
-	function RGBa2HTML(c) {
+	function RGB3fv_to_HTMLrgb(c) {
 		return "rgb("+((c[0]*256+0.5)|0)+","+
 		              ((c[1]*256+0.5)|0)+","+
 		              ((c[2]*256+0.5)|0)+")";
 	}
-	function RGB2HSL(r, g, b) {
+	function RGB3f_to_HSL3fv(r, g, b) {
 		var min = Math.min(r, g, b);
 		var max = Math.max(r, g, b);
 		var delta = max - min;
@@ -103,7 +103,7 @@ function ColorPicker(host, img_path) {
 	
 	//геттеры-сеттеры
 	this.setRGB = function(r, g, b, silent) {
-		var hsl = RGB2HSL(r, g, b);
+		var hsl = RGB3f_to_HSL3fv(r, g, b);
 		hue = hsl[0];
 		sat = hsl[1];
 		lum = hsl[2];
@@ -111,10 +111,10 @@ function ColorPicker(host, img_path) {
 		if (p.onfinalchange && !silent) p.onfinalchange();
 	}
 	this.getRGB = function() {
-		return HSL2RGB(hue, sat, lum);
+		return HSL3f_to_RGB3fv(hue, sat, lum);
 	}
 	this.getHTML = function() {
-		return RGBa2HTML(HSL2RGB(hue, sat, lum));
+		return RGB3fv_to_HTMLrgb(HSL3f_to_RGB3fv(hue, sat, lum));
 	}
 	
 	//размеры частей
@@ -147,7 +147,7 @@ function ColorPicker(host, img_path) {
 		markerSetPos(wheel_marker, wheel_w2+Math.sin(ang)*wheel_r,
 		                           wheel_w2-Math.cos(ang)*wheel_r);
 		markerSetPos(rect_marker, (1-sat)*rect_w, (1-lum)*rect_w);
-		color.style.background = RGBa2HTML(HSL2RGB(hue, 1, 0.5));
+		color.style.background = RGB3fv_to_HTMLrgb(HSL3f_to_RGB3fv(hue, 1, 0.5));
 		if (p.onchange) p.onchange();
 	}
 	function markerSetPos(marker, dx, dy) {
@@ -167,7 +167,7 @@ function ColorPicker(host, img_path) {
 		hue = Math.atan2(dx, -dy) / 3.1415927/2;
 		if (hue < 0) hue += 1;
 		markerSetPos(wheel_marker, wheel_w2+dx, wheel_w2+dy);
-		color.style.background = RGBa2HTML(HSL2RGB(hue,1,0.5));
+		color.style.background = RGB3fv_to_HTMLrgb(HSL3f_to_RGB3fv(hue,1,0.5));
 		if (p.onchange) p.onchange();
 	}
 	function rectProcess(pageX, pageY) {

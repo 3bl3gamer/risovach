@@ -5,8 +5,9 @@
 // * onDisconnect - отключение модуля, передача управления рисовачу
 //TODO: надо бы передавать временный буфер рисовача вместо основного (или по выбору)
 //TODO: да и историю б запилить не мешало
+//TODO: мб сохранять в историю и промежуточные действия типа поворота,
+//      тогда придётся учить Paint переключаться на инструмент по истории
 
-﻿var imgDefault="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAIAAAACDbGyAAAAAXNSR0IArs4c6QAAAAlwSFlzAAALEwAACxMBAJqcGAAAAAd0SU1FB9oMCRUiMrIBQVkAAAAZdEVYdENvbW1lbnQAQ3JlYXRlZCB3aXRoIEdJTVBXgQ4XAAAADElEQVQI12NgoC4AAABQAAEiE+h1AAAAAElFTkSuQmCC";
 
 function point_distance(x0,y0,x1,y1) {
 	return Math.sqrt((x0-x1)*(x0-x1)+(y0-y1)*(y0-y1));
@@ -75,25 +76,24 @@ function Sprite(img) {
 
 
 //содержит спрайт и функции для управления его трансформацией
-function ImageTransformer(paint, buffer_id, url, onload) {
-	var buffer = paint.getLayerBuffer(buffer_id);
-	var rc = buffer.getContext("2d");
+function ImageTransformer(paint, image) {
+	var buffer = paint.buffer;
+	var rc = buffer.rc;
 	
-	var img = new Image();
-	var sprite = new Sprite(img);
+	var sprite = new Sprite(image);
 	sprite.x = buffer.width*0.5;
 	sprite.y = buffer.height*0.5;
+	sprite.xo = image.width*0.5;
+	sprite.yo = image.height*0.5;
+	sprite.xscale = 0.75;
+	sprite.yscale = 0.75;
+	sprite.rotation = 0;
 	
 	var EVENT_DOWN=1, EVENT_MOVE=2, EVENT_UP=4;
 	var grab_x=NaN, grab_y=NaN, grab_i=-1;
 	var min_dis, min_i;
+	
 	function draw(cx,cy,event) {
-		/*var line = function(x0,y0,x1,y1) {
-			rc.beginPath();
-			rc.moveTo(x0,y0);
-			rc.lineTo(x1,y1);
-			rc.stroke();
-		}*/
 		rc.clearRect(0,0, buffer.width,buffer.height);
 		sprite.draw(rc);
 		
@@ -155,29 +155,6 @@ function ImageTransformer(paint, buffer_id, url, onload) {
 		}
 	}
 	
-	img.src = imgDefault;//загружаем дефолтное изображение из base64
-	var sender = this;
-	//как дефолтное "загрузилось", ставим параметры
-	//для дефолтной картинки и пускаем загрузку по переданной ссылке
-	img.onload = function() {
-		sprite.xo = this.width*0.5;
-		sprite.yo = this.height*0.5;
-		sprite.xscale = 8;
-		sprite.yscale = 8;
-		draw();//рисуем дефолтную на канвас
-		onload();//сигнализируем об этом
-		img.src = url;//заменяем ссылку
-		img.onload = function() {
-			sprite.xo = this.width*0.5;
-			sprite.yo = this.height*0.5;
-			sprite.xscale = 0.75;
-			sprite.yscale = 0.75;
-			sprite.rotation = 0;
-			draw();//рисуем загруженную на канвас
-			onload();//сигнализируем об этом
-		}
-	}
-	
 	function circleFill(x,y,r) {
 		rc.beginPath();
 		rc.arc(x,y, r, 0,3.1415927*2, false);
@@ -210,15 +187,35 @@ function ImageTransformer(paint, buffer_id, url, onload) {
 		e.preventDefault();
 	}
 	
-	this.connect = function(canvas) {
-		canvas.addEventListener("mousedown", grab, false);
-		document.addEventListener("mousemove", move, false);
-		document.addEventListener("mouseup",   drop, false);
+	this.modes = ["image-transform"];
+	this.mode = "image-transform";
+	
+	this.events = {
+		'mousedown': [canvas, grab],
+		'mousemove': [document, move],
+		'mouseup': [document, drop]
+	};
+	
+	this.onLayerChange =
+	this.onToolChange = function() {
+		paint.history.add(new ImageTransformerDone_HistoryStep(paint, this));
+		paint.applyBuffer();
+		paint.toolUsePrevious();
 	}
-	this.disconnect = function(canvas) {
-		canvas.removeEventListener("mousedown", grab, false);
-		document.removeEventListener("mousemove", move, false);
-		document.removeEventListener("mouseup",   drop, false);
-	}
+}
+
+
+function ImageTransformerDone_HistoryStep(paint, tool) {
+	this.paint = paint;
+	this.tool = tool;
+}
+ImageTransformerDone_HistoryStep.prototype.capture = function(buf) {
+	this.data = buf.rc.getImageData(0,0,buf.width,buf.height);
+}
+ImageTransformerDone_HistoryStep.prototype.undo = function(buf) {
+	buf.rc.putImageData(this.data,0,0);
+}
+ImageTransformerDone_HistoryStep.prototype.redo = function(buf) {
+	this.tool.draw();
 }
 
