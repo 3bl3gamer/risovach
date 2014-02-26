@@ -16,11 +16,10 @@
 	
 	//получает массив слоёв, выбирает нужный,
 	//восстанавливает участки в него
-	h.undo = function(buffers) {
+	h.undo = function() {
 		if (this.historyLen === 0) return;
 		var s = this.step[--this.historyLen];
-		var layer_id = s.layer_id;
-		s.undo(buffers[layer_id]);
+		s.undo(paint);
 	};
 	//если передан номер слоя, делает redo в слой с этим номером
 	//иначе - в слой, записанный в параметрах
@@ -28,10 +27,9 @@
 		if (this.historyLen === this.step.length) return false;
 		var s = this.step[this.historyLen++];
 		if (forceLayer !== undefined) {
-			s.layer_id = forceLayer;
-			s.capture(paint.getLayerBuffer(forceLayer));
+			s.capture(paint, forceLayer);
 		}
-		s.redo(paint.getLayerBuffer(s.layer_id));
+		s.redo(paint);
 		return true;
 	};
 }

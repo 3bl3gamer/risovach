@@ -1,4 +1,3 @@
-//вместо ​sizeSilent мб провеять что-то типа brush.autoUpdate
 
 function Brush(paint/*, disableHistory*/) {
 	var b = this;
@@ -30,7 +29,6 @@ function Brush(paint/*, disableHistory*/) {
 	var lastPressure = 1;
 	
 	var isDrawing = false; //идёт ли сейчас рисование
-	var isHistoryEnabled = false; //дублирует и кеширует параметр paint'а
 	var path = []; //путь (или полоса). массив вида [x0,y0,pressure0, x1,y1,pressure1, ...]
 	var params = []; //параметры [слой,размер,блюр,шаг,цвет,форма]
 	
@@ -180,19 +178,14 @@ function Brush(paint/*, disableHistory*/) {
 	b.start = function(x,y,pressure) {
 		if (isDrawing) return false;
 		
-		if (isHistoryEnabled = paint.historyEnabled) {
-			path = [x, y, pressure];
-		}
-		
+		path = [x, y, pressure];
 		this.simpleStart(paint.buffer.rc, x, y, pressure);
 		isDrawing = true;
 		
-		if (paint.autoUpdate) {
-			var r = getTotalRadius();
-			paint.refreshRect.extend_r(x,y,r+2);
-			if (paint.tryToUpdate(x,y))
-				paint.refreshRect.reset_r(x,y,r+2);//TODO: ну вообще неочень. дважды.
-		}
+		var r = getTotalRadius();
+		paint.refreshRect.extend_r(x,y,r+2);
+		if (paint.tryToUpdate(x,y))
+			paint.refreshRect.reset_r(x,y,r+2);//TODO: ну вообще неочень. дважды.
 		
 		return true;
 	}
@@ -224,17 +217,14 @@ function Brush(paint/*, disableHistory*/) {
 	}
 	b.move = function(x,y,pressure) {
 		if (isDrawing) {
-			if (isHistoryEnabled)
-				path.push(x,y,pressure);
+			path.push(x,y,pressure);
 			this.simpleMove(paint.buffer.rc, x, y, pressure);
 		}
 		
-		if (paint.autoUpdate) {
-			var r = getTotalRadius();
-			paint.refreshRect.extend_r(x,y,r+2);//+2, т.к. курсор-кружок
-			if (paint.tryToUpdate(x,y))
-				paint.refreshRect.reset_r(x,y,r+2);//TODO: чёт как-то неочень
-		}
+		var r = getTotalRadius();
+		paint.refreshRect.extend_r(x,y,r+2);//+2, т.к. курсор-кружок
+		if (paint.tryToUpdate(x,y))
+			paint.refreshRect.reset_r(x,y,r+2);//TODO: чёт как-то неочень
 		
 		return isDrawing;
 	}
@@ -242,14 +232,10 @@ function Brush(paint/*, disableHistory*/) {
 	b.end = function() {
 		if (!isDrawing) return false;
 		
-		if (isHistoryEnabled && paint.historyEnabled) //вдруг у paint'а история успела отключиться
-			paint.history.add(new BrushHistoryStep(paint, this, getParams(), path));
-			//this.history.addPath(this.layer,[this.getParams(),this.path],this.brushGetTotalRadius());
-		
+		paint.history.add(new BrushHistoryStep(paint, this, getParams(), path));
 		paint.applyBuffer();
 		
 		isDrawing = false;
-		
 		return true;
 	}
 	
@@ -379,8 +365,7 @@ function Merge(paint) {
 		lower.rc.drawImage(upper, 0,0);
 	}
 	m.drawCurrentLayerOn = function(layer_id) {
-		if (paint.historyEnabled)
-			paint.history.add(new MergeHistoryStep(paint, this, "draw", layer_id, paint.layer_id));
+		paint.history.add(new MergeHistoryStep(paint, this, "draw", layer_id, paint.layer_id));
 		this.simpleDraw(layer_id, paint.layer_id);
 		paint.refresh();
 	}

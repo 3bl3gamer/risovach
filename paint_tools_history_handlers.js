@@ -9,16 +9,6 @@ function BrushHistoryStep(paint, brush, params, path) {
 	s.addPathAndCapture(paint.getLayerBuffer(), params, path);
 }
 
-////устанавливает слой
-//BrushHistoryStep.prototype.setLayer = function(layer_id) {
-//	this.layer_id = layer_id;
-//}
-
-////для какого слоя тут данные
-//BrushHistoryStep.prototype.getLayer = function() {
-//	return this.layer_id;
-//}
-
 //возвращает площадь i-го прямоугольника
 BrushHistoryStep.prototype.getSquare = function(i) {
 	var rp = this.regionPos;
@@ -104,12 +94,14 @@ BrushHistoryStep.prototype.addPathAndCapture = function(buf, params, path) {
 		}
 	}
 	this.rectAdd(buf, left-r, top-r, right+r, bottom+r);
-	this.capture(buf);
+	this.capture(paint);
 }
 
 //проход по массиву прямоугольников, копирование пикселов
-BrushHistoryStep.prototype.capture = function(buf) {
+BrushHistoryStep.prototype.capture = function(paint, forceLayer) {
+	if (forceLayer !== undefined) this.layer_id = forceLayer;
 	this.region = [];
+	var buf = paint.getLayerBuffer(this.layer_id);
 	var rc=buf.rc, rp=this.regionPos;
 	for (var i=0; i<rp.length; i+=4) {
 		this.region.push(rc.getImageData(rp[i],rp[i+1],rp[i+2],rp[i+3]));
@@ -118,7 +110,8 @@ BrushHistoryStep.prototype.capture = function(buf) {
 }
 
 //восстановление пикселов
-BrushHistoryStep.prototype.undo = function(buf) {
+BrushHistoryStep.prototype.undo = function(paint) {
+	var buf = paint.getLayerBuffer(this.layer_id);
 	var rc=buf.rc, rp=this.regionPos;
 	for (var i=0; i<this.region.length; i++) {
 		rc.putImageData(this.region[i],rp[i*4],rp[i*4+1]);
@@ -126,10 +119,11 @@ BrushHistoryStep.prototype.undo = function(buf) {
 }
 
 //повторение
-BrushHistoryStep.prototype.redo = function(buf) {
+BrushHistoryStep.prototype.redo = function(paint) {
 	var brush = this.brush;
 	var path = this.path;
 	var params = brush.getParams();
+	var buf = paint.getLayerBuffer(this.layer_id);
 	brush.setParams(this.params);
 	buf.rc.globalCompositeOperation = brush.blendMode;
 	brush.simpleStart(buf.rc, path[0], path[1], path[2]);
@@ -139,14 +133,6 @@ BrushHistoryStep.prototype.redo = function(buf) {
 	brush.setParams(params);
 }
 
-//function BrushHistoryHandler(paint, brush) {
-//	var h = this;
-//	h.add = function() {
-//		paint.history.add(new BrushHistoryStep(paint.layer_id, ));
-//	}
-//}
-//end -> params and path -> calc rects -> save rects -> return Step
-
 
 function MergeHistoryStep(paint, merge, mode, layer_id, upper_layer_id) {
 	var s = this;
@@ -155,23 +141,18 @@ function MergeHistoryStep(paint, merge, mode, layer_id, upper_layer_id) {
 	s.data = null;
 	s.layer_id = layer_id;
 	s.upper_layer_id = upper_layer_id;
-	this.capture(paint.getLayerBuffer(layer_id));
+	this.capture(paint);
 }
-////устанавливает слой
-//MergeHistoryStep.prototype.setLayer = function(dest_layer) {
-//	this.dest_layer=dest_layer;
-//}
-////для какого слоя тут данные
-//MergeHistoryStep.prototype.getLayer = function() {
-//	return this.dest_layer;
-//}
-MergeHistoryStep.prototype.capture = function(buf) {
+MergeHistoryStep.prototype.capture = function(paint, forceLayer) {
+	if (forceLayer !== undefined) this.layer_id = forceLayer;
+	var buf = paint.getLayerBuffer(this.layer_id);
 	this.data = buf.rc.getImageData(0,0,buf.width,buf.height);
 }
-MergeHistoryStep.prototype.undo = function(buf) {
+MergeHistoryStep.prototype.undo = function(paint) {
+	var buf = paint.getLayerBuffer(this.layer_id);
 	buf.rc.putImageData(this.data,0,0);
 }
-MergeHistoryStep.prototype.redo = function(buf) {
+MergeHistoryStep.prototype.redo = function(paint) {
 	switch(this.mode) {
 	case "draw":
 		this.merge.simpleDraw(this.layer_id, this.upper_layer_id);

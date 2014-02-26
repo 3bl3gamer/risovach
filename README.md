@@ -10,7 +10,6 @@ Tool(paint):
 * blendMode (get)*
 
 HistoryStep(paint, tool, ...):
-* layer_id
-* capture(buffer)
-* undo(buffer)
-* redo(buffer)
+* capture(paint, [force_layer_id])
+* undo(paint)
+* redo(paint)

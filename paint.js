@@ -146,7 +146,6 @@ function Paint(canvas, wacom_plugin) {
 		handlersConnect(obj.events);
 	}*/
 	
-	p.autoUpdate = true;//автоматическая перерисовка при рисовании чего-то (отключается при восстановлении из истории)
 	//обновляет всё (если указаны координаты, нарисуется кружок кисти)
 	p.refresh = function(mouse_x,mouse_y) {
 		this.refreshRegion(0,0,width,height,mouse_x,mouse_y);
@@ -310,21 +309,14 @@ function Paint(canvas, wacom_plugin) {
 	
 	
 	p.undo = function() {
-		if (!this.historyEnabled) return;
-		this.history.undo(layers);
+		this.history.undo();
 		this.refresh(); //TODO: only updated
 	}
 	p.redo = function() {
-		if (!this.historyEnabled) return;
-		//this.historyEnabled = false;
-		//this.autoUpdate = false;
 		this.history.redo();
-		//this.historyEnabled = true;
-		//this.autoUpdate = true;
 		this.refresh(); //TODO: only updated
 	}
 	p.redoAll = function(forceLayer) {
-		if (!this.historyEnabled) return;
 		while (this.history.redo(forceLayer)) {};
 		this.refresh();
 	}
@@ -356,7 +348,6 @@ function Paint(canvas, wacom_plugin) {
 	}
 	
 	
-	p.historyEnabled = true;
 	p.history = new History(p);
 //	p.historyAdd = function(step) {
 //		step.layer_id = layer_id_cur;

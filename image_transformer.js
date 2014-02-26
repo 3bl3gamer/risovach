@@ -202,20 +202,26 @@ function ImageTransformer(paint, image) {
 		paint.applyBuffer();
 		paint.toolUsePrevious();
 	}
+	this.sprite = sprite;
 }
 
 
 function ImageTransformerDone_HistoryStep(paint, tool) {
 	this.paint = paint;
 	this.tool = tool;
+	this.layer_id = paint.layer_id;
 }
-ImageTransformerDone_HistoryStep.prototype.capture = function(buf) {
+ImageTransformerDone_HistoryStep.prototype.capture = function(paint, forceLayer) {
+	if (forceLayer !== undefined) this.layer_id = forceLayer;
+	var buf = paint.getLayerBuffer(this.layer_id);
 	this.data = buf.rc.getImageData(0,0,buf.width,buf.height);
 }
-ImageTransformerDone_HistoryStep.prototype.undo = function(buf) {
+ImageTransformerDone_HistoryStep.prototype.undo = function(paint) {
+	var buf = paint.getLayerBuffer(this.layer_id);
 	buf.rc.putImageData(this.data,0,0);
 }
-ImageTransformerDone_HistoryStep.prototype.redo = function(buf) {
-	this.tool.draw();
+ImageTransformerDone_HistoryStep.prototype.redo = function(paint) {
+	var buf = paint.getLayerBuffer(this.layer_id);
+	this.tool.sprite.draw(buf.rc);
 }
 
