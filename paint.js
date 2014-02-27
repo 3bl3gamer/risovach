@@ -1,24 +1,10 @@
 ﻿//TODO: (test) buffer layers to one (what?)
-//TODO: do not redraw brush visual circle when restoring from history
 //TODO: рисуется всё через временный слой, а восстанавливается сразу на нужный
-//      теоретически можно огрести проблем и расхождений
+//      теоретически можно огрести проблем и расхождений;
 //      проверить, насколько медленнее будет восстановление через временный слой
 //TODO: вынести цветоманипуляции в отдельный файл (а м.б. и нет)
-//TODO: разобраться с historyEnabled и history.add
+//TODO: разобраться с onToolChange, onLayerChange, onStart и т.д. (мб их наследовать от прототипа)
 
-//просто линия между точками
-CanvasRenderingContext2D.prototype.line = function(x0,y0,x1,y1) {
-	this.beginPath();
-	this.moveTo(x0,y0);
-	this.lineTo(x1,y1);
-	this.stroke();
-}
-//просто круг с координатами и радиусом
-CanvasRenderingContext2D.prototype.circle = function(x,y,r) {
-	this.beginPath();
-	this.arc(x,y, r, 0,3.1415927*2, false);
-	this.stroke();
-}
 
 function toRange(a, x, b) {
 	return x<a ? a : x>b ? b : x;
@@ -168,9 +154,8 @@ function Paint(canvas, wacom_plugin) {
 		rc.globalCompositeOperation = "source-over";
 		rc.drawImage(layers[layer_id_cur], x,y,w,h, x,y,w,h);
 		//поверх него рисуется временный слой с текущим режимом смешивания
-		//если режим смешивания не предоставлен, не рисуется. этакая оптимизация
-		if (rc.globalCompositeOperation = tool.blendMode)
-			rc.drawImage(buffer, x,y,w,h, x,y,w,h);
+		rc.globalCompositeOperation = tool.blendMode || "source-over";
+		rc.drawImage(buffer, x,y,w,h, x,y,w,h);
 		//под результат "подрисовываются" все слои, которые ниже
 		rc.globalCompositeOperation = "destination-over";
 		for (var i=layer_id_cur-1; i>=0; i--)
@@ -297,6 +282,7 @@ function Paint(canvas, wacom_plugin) {
 			handlersConnect(newTool.events);
 			tool = newTool;
 		}
+		if (newTool.onStart) newTool.onStart();
 	}
 	p.toolDisconnect = function() {
 		handlersDisconnect(tool.events);

@@ -28,3 +28,25 @@ function RGB3i_to_HTML7s(arr) {
 	return str;
 }
 
+//просто линия между точками
+CanvasRenderingContext2D.prototype.line = function(x0,y0,x1,y1) {
+	this.beginPath();
+	this.moveTo(x0,y0);
+	this.lineTo(x1,y1);
+	this.stroke();
+}
+//просто круг с координатами и радиусом
+CanvasRenderingContext2D.prototype.circleStroke =
+CanvasRenderingContext2D.prototype.circle = function(x,y,r) {
+	this.beginPath();
+	this.arc(x,y, r, 0,3.1415927*2, false);
+	this.stroke();
+}
+CanvasRenderingContext2D.prototype.circleFill = function(x,y,r) {
+	this.beginPath();
+	this.arc(x,y, r, 0,3.1415927*2, false);
+	this.fill();
+}
+CanvasRenderingContext2D.prototype.clear = function() {
+	this.clearRect(0, 0,this.canvas.width, this.canvas.height);
+}

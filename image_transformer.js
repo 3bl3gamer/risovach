@@ -1,14 +1,3 @@
-//модуль рисовача
-//должен содержать 2 метода:
-// * onConnect(buf) - передача управления модулю
-//    * buf - буфер для рисования
-// * onDisconnect - отключение модуля, передача управления рисовачу
-//TODO: надо бы передавать временный буфер рисовача вместо основного (или по выбору)
-//TODO: да и историю б запилить не мешало
-//TODO: мб сохранять в историю и промежуточные действия типа поворота,
-//      тогда придётся учить Paint переключаться на инструмент по истории
-
-
 function point_distance(x0,y0,x1,y1) {
 	return Math.sqrt((x0-x1)*(x0-x1)+(y0-y1)*(y0-y1));
 }
@@ -27,67 +16,89 @@ function Sprite(img) {
 	this.xo=0;
 	this.yo=0;
 	this.img=img;
-	//рисует себя на переданный контекст
-	this.draw=function(rc) {
-		rc.save()
-		rc.translate(this.x,this.y);
-		rc.rotate(this.rotation);
-		rc.scale(this.xscale,this.yscale);
-		rc.drawImage(this.img,-this.xo,-this.yo);
-		rc.restore();
-	}
-	
-	//возвращает координаты 4х угловых точек (привет, тригонометрия :3)
-	this.getPoints = function() {
-		var _cos = Math.cos(this.rotation)
-		  , _sin = Math.sin(this.rotation)
-		  , xo = this.xo, yo = this.yo
-		  , w = this.img.width, h = this.img.height
-		  , xs = this.xscale, ys = this.yscale
-		  , x = this.x, y = this.y;
-		return [
-			[( -xo   *_cos  +yo   *_sin)*xs+x, ( -yo   *_cos  -xo   *_sin)*ys+y],
-			[((-xo+w)*_cos  +yo   *_sin)*xs+x, ( -yo   *_cos+(-xo+w)*_sin)*ys+y],
-			[((-xo+w)*_cos+(+yo-h)*_sin)*xs+x, ((-yo+h)*_cos+(-xo+w)*_sin)*ys+y],
-			[( -xo   *_cos+(+yo-h)*_sin)*xs+x, ((-yo+h)*_cos  -xo   *_sin)*ys+y]
-		];
-	}
-	this.getPointsRelativePolar = function() {
-		var x0=-this.xo, y0=-this.yo;
-		var x1=this.img.width+x0, y1=this.img.height+y0;
-		return [
-			[Math.sqrt(x0*x0+y0*y0), Math.atan2(y0,x0)],
-			[Math.sqrt(x1*x1+y0*y0), Math.atan2(y0,x1)],
-			[Math.sqrt(x1*x1+y1*y1), Math.atan2(y1,x1)],
-			[Math.sqrt(x0*x0+y1*y1), Math.atan2(y1,x0)]
-		];
-	}
-	this.getPointRelativePolar = function(id) {
-		var x0=-this.xo, y0=-this.yo;
-		var x1=this.img.width+x0, y1=this.img.height+y0;
-		switch (id) { //хм. как-то неэстетично
-			case 0: return [Math.sqrt(x0*x0+y0*y0), Math.atan2(y0,x0)];
-			case 1: return [Math.sqrt(x1*x1+y0*y0), Math.atan2(y0,x1)];
-			case 2: return [Math.sqrt(x1*x1+y1*y1), Math.atan2(y1,x1)];
-			case 3: return [Math.sqrt(x0*x0+y1*y1), Math.atan2(y1,x0)];
-		}
+}
+//рисует себя на переданный контекст
+Sprite.prototype.draw=function(rc) {
+	rc.save()
+	rc.translate(this.x,this.y);
+	rc.rotate(this.rotation);
+	rc.scale(this.xscale,this.yscale);
+	rc.drawImage(this.img,-this.xo,-this.yo);
+	rc.restore();
+}
+//возвращает координаты 4х угловых точек (привет, тригонометрия :3)
+Sprite.prototype.getPoints = function() {
+	var _cos = Math.cos(this.rotation)
+	  , _sin = Math.sin(this.rotation)
+	  , xo = this.xo, yo = this.yo
+	  , w = this.img.width, h = this.img.height
+
+	  , xs = this.xscale, ys = this.yscale
+	  , x = this.x, y = this.y;
+	return [
+		[( -xo   *_cos  +yo   *_sin)*xs+x, ( -yo   *_cos  -xo   *_sin)*ys+y],
+		[((-xo+w)*_cos  +yo   *_sin)*xs+x, ( -yo   *_cos+(-xo+w)*_sin)*ys+y],
+		[((-xo+w)*_cos+(+yo-h)*_sin)*xs+x, ((-yo+h)*_cos+(-xo+w)*_sin)*ys+y],
+		[( -xo   *_cos+(+yo-h)*_sin)*xs+x, ((-yo+h)*_cos  -xo   *_sin)*ys+y]
+	];
+}
+Sprite.prototype.getPointsRelativePolar = function() {
+	var x0=-this.xo, y0=-this.yo;
+	var x1=this.img.width+x0, y1=this.img.height+y0;
+	return [
+		[Math.sqrt(x0*x0+y0*y0), Math.atan2(y0,x0)],
+		[Math.sqrt(x1*x1+y0*y0), Math.atan2(y0,x1)],
+		[Math.sqrt(x1*x1+y1*y1), Math.atan2(y1,x1)],
+		[Math.sqrt(x0*x0+y1*y1), Math.atan2(y1,x0)]
+	];
+}
+Sprite.prototype.getPointRelativePolar = function(id) {
+	var x0=-this.xo, y0=-this.yo;
+	var x1=this.img.width+x0, y1=this.img.height+y0;
+	switch (id) { //хм. как-то неэстетично
+		case 0: return [Math.sqrt(x0*x0+y0*y0), Math.atan2(y0,x0)];
+		case 1: return [Math.sqrt(x1*x1+y0*y0), Math.atan2(y0,x1)];
+		case 2: return [Math.sqrt(x1*x1+y1*y1), Math.atan2(y1,x1)];
+		case 3: return [Math.sqrt(x0*x0+y1*y1), Math.atan2(y1,x0)];
 	}
 }
 
 
 //содержит спрайт и функции для управления его трансформацией
-function ImageTransformer(paint, image) {
+function ImageTransformer(paint) {
+	var transf = this;
 	var buffer = paint.buffer;
 	var rc = buffer.rc;
 	
-	var sprite = new Sprite(image);
-	sprite.x = buffer.width*0.5;
-	sprite.y = buffer.height*0.5;
-	sprite.xo = image.width*0.5;
-	sprite.yo = image.height*0.5;
-	sprite.xscale = 0.75;
-	sprite.yscale = 0.75;
-	sprite.rotation = 0;
+	var sprite = null;
+	function setImage(image) {
+		sprite = new Sprite(image);
+		sprite.x = buffer.width*0.5;
+		sprite.y = buffer.height*0.5;
+		sprite.xo = image.width*0.5;
+		sprite.yo = image.height*0.5;
+		sprite.xscale = 0.75;
+		sprite.yscale = 0.75;
+		sprite.rotation = 0;
+	}
+	
+	var prev_state = null;
+	function getState() {
+		return {
+			x: sprite.x,
+			y: sprite.y,
+			xscale: sprite.xscale,
+			yscale: sprite.yscale,
+			rotation: sprite.rotation
+		};
+	}
+	function setState(st) {
+		sprite.x = st.x;
+		sprite.y = st.y;
+		sprite.xscale = st.xscale;
+		sprite.yscale = st.yscale;
+		sprite.rotation = st.rotation;
+	}
 	
 	var EVENT_DOWN=1, EVENT_MOVE=2, EVENT_UP=4;
 	var grab_x=NaN, grab_y=NaN, grab_i=-1;
@@ -98,6 +109,9 @@ function ImageTransformer(paint, image) {
 		sprite.draw(rc);
 		
 		if (event==EVENT_UP) {
+			if (grab_x == grab_x) {
+				paint.history.add(new ImageTransformerChange_HistoryStep(paint, transf, prev_state, getState()));
+			}
 			grab_i = -1;
 			grab_x = grab_y = NaN;
 		}
@@ -110,7 +124,7 @@ function ImageTransformer(paint, image) {
 		
 		var p = sprite.getPoints();
 		for (var i=0; i<4; i++)
-			circleFill(p[i][0],p[i][1],3);
+			rc.circleFill(p[i][0],p[i][1],3);
 		rc.beginPath();
 		rc.moveTo(p[3][0],p[3][1]);
 		for (var i=0; i<4; i++)
@@ -131,17 +145,19 @@ function ImageTransformer(paint, image) {
 		}
 		
 		if (grab_i != -1) { //захвачена точка. рисуем её и выходим
-			circleStroke(p[grab_i][0],p[grab_i][1], 8);
+			rc.circleStroke(p[grab_i][0],p[grab_i][1], 8);
 			return;
 		}
-		if (grab_x == grab_x) return; //просто перетаскивается. даже точку обводить не надо
+		if (grab_x == grab_x){ //просто перетаскивается. даже точку обводить не надо
+			return;
+		}
 		
 		var min_dis=Infinity, min_i;
 		for (var i=0; i<4; i++) {
 			var dis = point_distance(cx,cy,p[i][0],p[i][1]);
 			if (dis < min_dis) {min_dis=dis; min_i=i}
 		}
-		circleStroke(p[min_i][0],p[min_i][1], min_dis<8?8:5);
+		rc.circleStroke(p[min_i][0],p[min_i][1], min_dis<8?8:5);
 		
 		if (event == EVENT_DOWN) {
 			if (min_dis < 8) { //ткнули в точку
@@ -152,18 +168,10 @@ function ImageTransformer(paint, image) {
 				grab_x = cx-sprite.x;
 				grab_y = cy-sprite.y;
 			}
+			if (grab_x == grab_x) { //что-то захватили
+				prev_state = getState();
+			}
 		}
-	}
-	
-	function circleFill(x,y,r) {
-		rc.beginPath();
-		rc.arc(x,y, r, 0,3.1415927*2, false);
-		rc.fill();
-	}
-	function circleStroke(x,y,r) {
-		rc.beginPath();
-		rc.arc(x,y, r, 0,3.1415927*2, false);
-		rc.stroke();
 	}
 	
 	function grab(e) {
@@ -196,20 +204,80 @@ function ImageTransformer(paint, image) {
 		'mouseup': [document, drop]
 	};
 	
+	this.onStart = function() {
+		if (paint.history.action != "none") return;
+		if (!sprite) {
+			paint.toolUsePrevious();
+			console.warn("Image transformer started without sprite"); //DEBUG
+			return;
+		}
+		paint.history.add(new ImageTransformerStart_HistoryStep(paint, this));
+		draw();
+		paint.refresh();
+	}
 	this.onLayerChange =
 	this.onToolChange = function() {
+		if (paint.history.action != "none") return;
 		paint.history.add(new ImageTransformerDone_HistoryStep(paint, this));
+		sprite = null;
 		paint.applyBuffer();
 		paint.toolUsePrevious();
 	}
-	this.sprite = sprite;
+	this.setImage = setImage;
+	Object.defineProperty(this, "sprite", {
+		get: function() {return sprite;},
+		set: function(s) {sprite = s;}
+	});
+	this.setState = setState;
+	this.update = function() {
+		draw();
+		paint.refresh();
+	}
+}
+
+
+function ImageTransformerStart_HistoryStep(paint, tool) {
+	this.tool = tool;
+	this.layer_id = paint.layer_id;
+	this.sprite = tool.sprite;
+}
+ImageTransformerStart_HistoryStep.prototype.capture = function(paint, forceLayer) {
+	if (forceLayer !== undefined) this.layer_id = forceLayer;
+}
+ImageTransformerStart_HistoryStep.prototype.undo = function(paint) {
+	paint.toolUsePrevious();
+	paint.buffer.rc.clear();
+}
+ImageTransformerStart_HistoryStep.prototype.redo = function(paint) {
+	this.tool.sprite = this.sprite;
+	paint.layer_id = this.layer_id;
+	paint.toolSet("image-transform");
+	this.tool.update();
+}
+
+
+function ImageTransformerChange_HistoryStep(paint, tool, prev_state, new_state) {
+	this.tool = tool;
+	this.prev_state = prev_state;
+	this.new_state = new_state;
+}
+ImageTransformerChange_HistoryStep.prototype.capture = function() {}
+ImageTransformerChange_HistoryStep.prototype.undo = function() {
+	this.tool.setState(this.prev_state);
+	this.tool.update();
+}
+ImageTransformerChange_HistoryStep.prototype.redo = function() {
+	this.tool.setState(this.new_state);
+	this.tool.update();
 }
 
 
 function ImageTransformerDone_HistoryStep(paint, tool) {
-	this.paint = paint;
 	this.tool = tool;
 	this.layer_id = paint.layer_id;
+	this.sprite = tool.sprite;
+	this.data = null;
+	this.capture(paint);
 }
 ImageTransformerDone_HistoryStep.prototype.capture = function(paint, forceLayer) {
 	if (forceLayer !== undefined) this.layer_id = forceLayer;
@@ -219,9 +287,15 @@ ImageTransformerDone_HistoryStep.prototype.capture = function(paint, forceLayer)
 ImageTransformerDone_HistoryStep.prototype.undo = function(paint) {
 	var buf = paint.getLayerBuffer(this.layer_id);
 	buf.rc.putImageData(this.data,0,0);
+	this.tool.sprite = this.sprite;
+	paint.layer_id = this.layer_id;
+	paint.toolSet("image-transform");
+	this.tool.update();
 }
 ImageTransformerDone_HistoryStep.prototype.redo = function(paint) {
 	var buf = paint.getLayerBuffer(this.layer_id);
 	this.tool.sprite.draw(buf.rc);
+	paint.toolUsePrevious();
+	paint.buffer.rc.clear();
 }
 
