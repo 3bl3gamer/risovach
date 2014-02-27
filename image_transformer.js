@@ -100,99 +100,164 @@ function ImageTransformer(paint) {
 		sprite.rotation = st.rotation;
 	}
 	
-	var EVENT_DOWN=1, EVENT_MOVE=2, EVENT_UP=4;
+	//grab_x, grab_y - относительные координаты точки, за которую схватили
+	//grab_i - id угла, за который схватили (если за угол)
 	var grab_x=NaN, grab_y=NaN, grab_i=-1;
-	var min_dis, min_i;
+	//grab_dir - разность направления тач0-тач1 и поворота спрайта
+	//grab_xscale, grab_yscale - трансформация по осям относительно расстояния между тачами
+	var grab_dir=NaN, grab_xscale=NaN, grab_yscale=NaN;
+	var sprite_p, min_dis, min_i;
 	
-	function draw(cx,cy,event) {
+	function updateSpritePoints(x,y) {
+		if (x === undefined || y === undefined) return;
+		var p = sprite_p || sprite.getPoints();
+		min_dis = Infinity;
+		for (var i=0; i<4; i++) {
+			var dis = point_distance(x,y,p[i][0],p[i][1]);
+			if (dis < min_dis) {min_dis=dis; min_i=i}
+		}
+		//if (grab_i != -1) rc.circleStroke(p[grab_i][0],p[grab_i][1], 8);
+		//else if (min_dis<8) rc.circleStroke(p[min_i][0],p[min_i][1], 8);
+	}
+	
+	function drawWithFrame() {
 		rc.clearRect(0,0, buffer.width,buffer.height);
 		sprite.draw(rc);
 		
-		if (event==EVENT_UP) {
-			if (grab_x == grab_x) {
-				paint.history.add(new ImageTransformerChange_HistoryStep(paint, transf, prev_state, getState()));
-			}
-			grab_i = -1;
-			grab_x = grab_y = NaN;
-		}
+		var p = sprite_p = sprite.getPoints();
 		
-		//нет координат мыши(и др.) - рисуем картинку и хватит
-		if (cx === undefined) return;
-		
-		//var p = sprite.getPoints();
-		//for (var i=0;i<4;i++) rc.fillText(i,p[i][0],p[i][1]);//line(0,0,p[i][0],p[i][1]);
-		
-		var p = sprite.getPoints();
 		for (var i=0; i<4; i++)
 			rc.circleFill(p[i][0],p[i][1],3);
+		
 		rc.beginPath();
 		rc.moveTo(p[3][0],p[3][1]);
 		for (var i=0; i<4; i++)
 			rc.lineTo(p[i][0],p[i][1]);
 		rc.stroke();
-		
-		if (event == EVENT_MOVE) {
-			if (grab_i != -1) { //перетаскивается точка
-				var rpx=cx-grab_x-sprite.x, rpy=cy-grab_y-sprite.y;
-				var pp = sprite.getPointRelativePolar(grab_i);
-				sprite.xscale = sprite.yscale = Math.sqrt(rpx*rpx+rpy*rpy)/pp[0];
-				sprite.rotation = Math.atan2(rpy, rpx)-pp[1];
-			} else
-			if (grab_x == grab_x) { //перетаскивается вся картинка
-				sprite.x = cx-grab_x;
-				sprite.y = cy-grab_y;
-			}
+	}
+	
+	
+	function singleDown(x,y) {
+		updateSpritePoints(x,y);
+		if (min_dis < 8) { //ткнули в точку
+			grab_x = x - sprite_p[min_i][0];
+			grab_y = y - sprite_p[min_i][1];
+			grab_i = min_i;
+		} else { //ткнули не в точку (простое перетаскивание)
+			grab_x = x - sprite.x;
+			grab_y = y - sprite.y;
 		}
-		
-		if (grab_i != -1) { //захвачена точка. рисуем её и выходим
-			rc.circleStroke(p[grab_i][0],p[grab_i][1], 8);
-			return;
+		prev_state = getState();
+		drawWithFrame();
+		paint.refresh();
+	}
+	function singleMove(x,y) {
+		if (grab_x != grab_x) return;
+		updateSpritePoints(x,y);
+		if (grab_i != -1) { //перетаскивается точка
+			var rpx=x-grab_x-sprite.x, rpy=y-grab_y-sprite.y;
+			var pp = sprite.getPointRelativePolar(grab_i);
+			sprite.xscale = sprite.yscale = Math.sqrt(rpx*rpx+rpy*rpy)/pp[0];
+			sprite.rotation = Math.atan2(rpy, rpx)-pp[1];
+		} else
+		if (grab_x == grab_x) { //перетаскивается вся картинка
+			sprite.x = x - grab_x;
+			sprite.y = y - grab_y;
 		}
-		if (grab_x == grab_x){ //просто перетаскивается. даже точку обводить не надо
-			return;
+		drawWithFrame();
+		paint.refresh();
+	}
+	function singleUp(with_history) {
+		if (grab_x == grab_x && with_history) {
+			paint.history.add(new ImageTransformerChange_HistoryStep(paint, transf, prev_state, getState()));
 		}
-		
-		var min_dis=Infinity, min_i;
-		for (var i=0; i<4; i++) {
-			var dis = point_distance(cx,cy,p[i][0],p[i][1]);
-			if (dis < min_dis) {min_dis=dis; min_i=i}
-		}
-		rc.circleStroke(p[min_i][0],p[min_i][1], min_dis<8?8:5);
-		
-		if (event == EVENT_DOWN) {
-			if (min_dis < 8) { //ткнули в точку
-				grab_x = cx-p[min_i][0];
-				grab_y = cy-p[min_i][1];
-				grab_i = min_i;
-			} else { //ткнули не в точку (простое перетаскивание)
-				grab_x = cx-sprite.x;
-				grab_y = cy-sprite.y;
-			}
-			if (grab_x == grab_x) { //что-то захватили
-				prev_state = getState();
-			}
-		}
+		grab_i = -1;
+		grab_x = grab_y = NaN;
+		drawWithFrame();
+		paint.refresh();
+	}
+	function doubleDown(x0,y0, x1,y1) {
+		grab_x = (x0+x1)/2 - sprite.x;
+		grab_y = (y0+y1)/2 - sprite.y;
+		grab_dir = Math.atan2(y1-y0, x1-x0) - sprite.rotation;
+		grab_xscale = sprite.xscale / point_distance(x0,y0,x1,y1);
+		grab_yscale = sprite.yscale / point_distance(x0,y0,x1,y1);
+		prev_state = getState();
+	}
+	function doubleMove(x0,y0, x1,y1) {
+		sprite.x = (x0+x1)/2 - grab_x;
+		sprite.y = (y0+y1)/2 - grab_y;
+		sprite.rotation = Math.atan2(y1-y0, x1-x0) - grab_dir;
+		sprite.xscale = point_distance(x0,y0,x1,y1) * grab_xscale;
+		sprite.yscale = point_distance(x0,y0,x1,y1) * grab_yscale;
+		drawWithFrame();
+		paint.refresh();
+	}
+	function doubleUp(with_history) {
+		grab_x = grab_y = grab_dir = grab_xscale = grab_yscale = NaN;
 	}
 	
 	function grab(e) {
-		var cx = e.pageX-paint.canvas_pos[0];
-		var cy = e.pageY-paint.canvas_pos[1];
-		draw(cx, cy, EVENT_DOWN);
+		singleDown(e.pageX-paint.canvas_pos[0], e.pageY-paint.canvas_pos[1]);
 		e.preventDefault();
 	}
 	function move(e) {
-		var cx = e.pageX-paint.canvas_pos[0];
-		var cy = e.pageY-paint.canvas_pos[1];
-		
-		draw(cx, cy, EVENT_MOVE);
-		
-		paint.refresh();
+		singleMove(e.pageX-paint.canvas_pos[0], e.pageY-paint.canvas_pos[1]);
 		e.preventDefault();
 	}
 	function drop(e) {
-		draw(undefined, undefined, EVENT_UP);
-		paint.refresh();
+		singleUp(true);
 		e.preventDefault();
+	}
+	
+	var touch_numb = 0;
+	function touchStart(e) {
+		if (e.touches.length > 2) return;
+		e.preventDefault();
+		
+		if (e.touches.length == 1) {
+			var t = e.touches[0];
+			singleDown(t.pageX-paint.canvas_pos[0], t.pageY-paint.canvas_pos[1]);
+		} else {
+			if (touch_numb == 1) singleUp(false);
+			var t0 = e.touches[0], t1 = e.touches[1];
+			doubleDown(
+				t0.pageX-paint.canvas_pos[0], t0.pageY-paint.canvas_pos[1],
+				t1.pageX-paint.canvas_pos[0], t1.pageY-paint.canvas_pos[1]
+			);
+		}
+		touch_numb = e.touches.length;
+	}
+	function touchMove(e) {
+		if (e.touches.length > 2) return;
+		if (e.touches.length != touch_numb) return; //тут что-то нетак
+		e.preventDefault();
+		
+		if (e.touches.length == 1) {
+			var t = e.touches[0];
+			singleMove(t.pageX-paint.canvas_pos[0], t.pageY-paint.canvas_pos[1]);
+		} else {
+			var t0 = e.touches[0], t1 = e.touches[1];
+			//мобильная Опера 12.04 в передёт тачи сюда в обратном порядке
+			if (t0.identifier > t1.identifier) {var t=t0; t0=t1; t1=t;}
+			doubleMove(
+				t0.pageX-paint.canvas_pos[0], t0.pageY-paint.canvas_pos[1],
+				t1.pageX-paint.canvas_pos[0], t1.pageY-paint.canvas_pos[1]
+			);
+		}
+	}
+	function touchEnd(e) {
+		if (e.touches.length > 1) return;
+		e.preventDefault();
+		
+		if (e.touches.length == 0) {
+			singleUp(true);
+		} else {
+			doubleUp(false);
+			var t = e.touches[0];
+			singleDown(t.pageX-paint.canvas_pos[0], t.pageY-paint.canvas_pos[1]);
+		}
+		touch_numb = e.touches.length;
 	}
 	
 	this.modes = ["image-transform"];
@@ -201,7 +266,10 @@ function ImageTransformer(paint) {
 	this.events = {
 		'mousedown': [canvas, grab],
 		'mousemove': [document, move],
-		'mouseup': [document, drop]
+		'mouseup': [document, drop],
+		'touchstart': [canvas, touchStart],
+		'touchmove': [document, touchMove],
+		'touchend': [document, touchEnd]
 	};
 	
 	this.onStart = function() {
@@ -212,8 +280,7 @@ function ImageTransformer(paint) {
 			return;
 		}
 		paint.history.add(new ImageTransformerStart_HistoryStep(paint, this));
-		draw();
-		paint.refresh();
+		this.update();
 	}
 	this.onLayerChange =
 	this.onToolChange = function() {
@@ -230,7 +297,7 @@ function ImageTransformer(paint) {
 	});
 	this.setState = setState;
 	this.update = function() {
-		draw();
+		drawWithFrame();
 		paint.refresh();
 	}
 }
