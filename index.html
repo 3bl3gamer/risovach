@@ -50,7 +50,10 @@ console.warn = function() {
 var paint, merge;
 window.onload = function() {
 	var rc = canvas.getContext("2d");
-	paint = new Paint(canvas);
+	paint = new Paint(canvas, {
+		wacom_plugin: wtPlugin, //я забыл, как его подключать...
+		layer_numb: 3 //R U HAPPY NOW?
+	});
 	
 	var brush = new Brush(paint);
 	brush.size = 5;
@@ -123,7 +126,7 @@ function send() {
 				width=800 height=400>Обновите браузер</canvas></td>
 		<td><div id="buttons"></div>
 		<button onclick="paint.redoAll(paint.layer_id);">Redo all</button>
-		<button onclick="merge.drawCurrentLayerOn(1);">Merge</button>
+		<button onclick="merge.drawCurrentLayerOn(0);">Merge</button>
 		<br>
 		<button onclick="paint.toolSet('brush');">Brush</button>
 		<button onclick="paint.toolSet('eraser');">Eraser</button>

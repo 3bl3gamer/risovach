@@ -283,11 +283,14 @@ function ImageTransformer(paint) {
 		this.update();
 	}
 	this.onLayerChange =
-	this.onToolChange = function() {
-		if (paint.history.action != "none") return;
+	this.onToolChange = function(oldTool, newTool) {
+		if (paint.history.action != "none" || !sprite) return;
 		paint.history.add(new ImageTransformerDone_HistoryStep(paint, this));
+		rc.clear();
+		sprite.draw(rc);
 		sprite = null;
 		paint.applyBuffer();
+		paint.refresh();
 		paint.toolUsePrevious();
 	}
 	this.setImage = setImage;

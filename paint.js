@@ -60,7 +60,7 @@ function Rect() {
 
 
 //создаёт объект рисовальщика, завязан на canvas'е
-function Paint(canvas, wacom_plugin) {
+function Paint(canvas, params) {
 	var p = this;
 	var rc = canvas.getContext("2d");
 	canvas.rc = rc;
@@ -76,7 +76,7 @@ function Paint(canvas, wacom_plugin) {
 	
 	//ищем апишечку Bamboo'шечки
 	var penAPI;
-	if (wacom_plugin && (penAPI = wacom_plugin.penAPI)) //нашли
+	if (params.wacom_plugin && (penAPI = params.wacom_plugin.penAPI)) //нашли
 		p.getPressure = function() {if (penAPI.pointerType!=0) return penAPI.pressure; else return 1.0;}
 	else //не нашли
 		p.getPressure = function() {return Math.pow(Math.min(1, (new Date().getTime()-p.event_start_time)/100), 0.5)+0.05;}
@@ -84,7 +84,7 @@ function Paint(canvas, wacom_plugin) {
 	
 	//параметры и методы слоёв
 	var layers = []; //массив слоёв (объектов canvas)
-	var layer_numb = 4; //количество слоёв
+	var layer_numb = params.layer_numb || 4; //количество слоёв
 	for (var i=0;i<layer_numb;i++) //каждому слою по буфферу
 		layers.push(createBuffer(width, height));
 	var layer_id_cur = 0; //текущий

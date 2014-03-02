@@ -1,4 +1,4 @@
-function Brush(paint/*, disableHistory*/) {
+function Brush(paint) {
 	var b = this;
 	var canvas = paint.canvas;
 	//var history = disableHistory ? null : new BrushHistoryHandler(paint, this);
@@ -276,6 +276,7 @@ function Brush(paint/*, disableHistory*/) {
 			onStart: function() {blendMode = BLEND_MODE_NORMAL;},
 			events: events,
 			cursor: cursor,
+			get blendMode() {return blendMode},
 		};
 	}
 	
@@ -284,6 +285,7 @@ function Brush(paint/*, disableHistory*/) {
 			onStart: function() {blendMode = BLEND_MODE_ERASER;},
 			events: events,
 			cursor: cursor,
+			get blendMode() {return blendMode},
 		};
 	}
 	
