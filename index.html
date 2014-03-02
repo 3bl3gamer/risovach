@@ -11,6 +11,17 @@
 <script src="tool_image_transformer.js"></script>
 
 
+<style>
+.layer_preview {
+	background: url(back.png);
+	border: 1px solid black;
+}
+.layer_preview.selected {
+	border: 1px solid white;
+}
+</style>
+
+
 <script>
 
 //я сделаю свой консоль с логированием и эксепшенами
@@ -75,11 +86,17 @@ window.onload = function() {
 	//создание кнопок
 	paint.forEachLayer(function(id, buf) {
 		var b = document.createElement('button');
+		b.className = "layer_preview";
 		//вообще, так как-то криво. зато просто и работает
 		buf.style.width  = "128px";
 		buf.style.height = "64px";
 		b.appendChild(buf);
-		b.onclick = function() {paint.layer_id = id;};
+		b.onclick = function() {
+			var cur = buttons.children[buttons.children.length-1-paint.layer_id]; 
+			cur.classList.remove("selected");
+			this.classList.add("selected");
+			paint.layer_id = id;
+		};
 		b.style.display = "block";
 		buttons.insertBefore(b, buttons.firstChild);
 	});
@@ -87,7 +104,7 @@ window.onload = function() {
 	var cp = new ColorPicker(picker_div, "color_picker_2.0/");
 	cp.setRGB(0,0,0);
 	cp.onchange = function() {
-		color_div.style.background = this.getHTML();
+		color_box.style.background = this.getHTML();
 	};
 	cp.onfinalchange = function() {
 		brush.colorHTML = this.getHTML();
@@ -121,20 +138,29 @@ function send() {
 <img style="display:none;" id="img_for_paint_first_layer" src="h1ji3-pi-black_small.jpg">
 <table>
 	<tr>
-		<td><canvas id="canvas" style="z-index: 2; margin-left:64px; margin-top:32px;
-				                       border: 1px solid #000; background:url(back.png);"
-				width=800 height=400>Обновите браузер</canvas></td>
-		<td><div id="buttons"></div>
-		<button onclick="paint.redoAll(paint.layer_id);">Redo all</button>
-		<button onclick="merge.drawCurrentLayerOn(0);">Merge</button>
-		<br>
-		<button onclick="paint.toolSet('brush');">Brush</button>
-		<button onclick="paint.toolSet('eraser');">Eraser</button>
-		<button onclick="paint.toolSet('picker');">Picker</button>
-		<button onclick="send()">Send</button></td>
 		<td>
-		<div id="picker_div"></div>
-		<div id="color_div" style="width:64; height:64; outline:1px solid white;"></div>
+			<button onclick="paint.toolSet('brush');">Brush</button>
+			<button onclick="paint.toolSet('eraser');">Eraser</button>
+			<button onclick="paint.toolSet('picker');">Picker</button>
+			<button onclick="paint.undo();">&lt;--</button>
+			<button onclick="paint.redo();">--&gt;</button>
+			<button onclick="paint.redoAll(paint.layer_id);">Redo all</button>
+			<button onclick="merge.drawCurrentLayerOn(0);">Merge on 0</button>
+			<button onclick="send()">Send</button>
+		</td>
+		<td>
+			<div id="color_box" style="width:128px; height:15px; outline:1px solid white; display:inline-block;"></div>
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<canvas id="canvas" style="z-index: 2; margin-left:0px; margin-top:8px;
+			                           border: 1px solid #000; background:url(back.png);"
+			        width=800 height=400>Обновите браузер</canvas>
+		</td>
+		<td>
+			<div id="picker_div"></div>
+			<div id="buttons"></div>
 		</td>
 	</tr>
 </table>
