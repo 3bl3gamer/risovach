@@ -152,7 +152,7 @@ function ImageTransformer(paint) {
 		paint.refresh();
 	}
 	function singleMove(x,y) {
-		if (grab_x != grab_x) return;
+		if (grab_x != grab_x) return true;
 		updateSpritePoints(x,y);
 		if (grab_i != -1) { //перетаскивается точка
 			var rpx=x-grab_x-sprite.x, rpy=y-grab_y-sprite.y;
@@ -168,7 +168,8 @@ function ImageTransformer(paint) {
 		paint.refresh();
 	}
 	function singleUp(with_history) {
-		if (grab_x == grab_x && with_history) {
+		if (grab_x != grab_x) return true;
+		if (with_history) {
 			paint.history.add(new ImageTransformerChange_HistoryStep(paint, transf, prev_state, getState()));
 		}
 		grab_i = -1;
@@ -185,6 +186,7 @@ function ImageTransformer(paint) {
 		prev_state = getState();
 	}
 	function doubleMove(x0,y0, x1,y1) {
+		if (grab_x != grab_x) return true;
 		sprite.x = (x0+x1)/2 - grab_x;
 		sprite.y = (y0+y1)/2 - grab_y;
 		sprite.rotation = Math.atan2(y1-y0, x1-x0) - grab_dir;
@@ -194,6 +196,7 @@ function ImageTransformer(paint) {
 		paint.refresh();
 	}
 	function doubleUp(with_history) {
+		if (grab_x != grab_x) return true;
 		grab_x = grab_y = grab_dir = grab_xscale = grab_yscale = NaN;
 	}
 	
@@ -213,29 +216,32 @@ function ImageTransformer(paint) {
 	var touch_numb = 0;
 	function touchStart(e) {
 		if (e.touches.length > 2) return;
-		e.preventDefault();
+		var prevent = false;
 		
 		if (e.touches.length == 1) {
 			var t = e.touches[0];
-			singleDown(t.pageX-paint.canvas_pos[0], t.pageY-paint.canvas_pos[1]);
+			prevent = !singleDown(t.pageX-paint.canvas_pos[0], t.pageY-paint.canvas_pos[1]);
 		} else {
-			if (touch_numb == 1) singleUp(false);
+			if (touch_numb == 1) prevent = !singleUp(false);
 			var t0 = e.touches[0], t1 = e.touches[1];
-			doubleDown(
+			prevent += !doubleDown(
 				t0.pageX-paint.canvas_pos[0], t0.pageY-paint.canvas_pos[1],
 				t1.pageX-paint.canvas_pos[0], t1.pageY-paint.canvas_pos[1]
 			);
 		}
+		
+		if (prevent) e.preventDefault();
 		touch_numb = e.touches.length;
 	}
 	function touchMove(e) {
 		if (e.touches.length > 2) return;
 		if (e.touches.length != touch_numb) return; //тут что-то нетак
-		e.preventDefault();
 		
 		if (e.touches.length == 1) {
 			var t = e.touches[0];
-			singleMove(t.pageX-paint.canvas_pos[0], t.pageY-paint.canvas_pos[1]);
+			singleMove(
+				t.pageX-paint.canvas_pos[0], t.pageY-paint.canvas_pos[1]
+			) || e.preventDefault();
 		} else {
 			var t0 = e.touches[0], t1 = e.touches[1];
 			//мобильная Опера 12.04 в передёт тачи сюда в обратном порядке
@@ -243,20 +249,21 @@ function ImageTransformer(paint) {
 			doubleMove(
 				t0.pageX-paint.canvas_pos[0], t0.pageY-paint.canvas_pos[1],
 				t1.pageX-paint.canvas_pos[0], t1.pageY-paint.canvas_pos[1]
-			);
+			) || e.preventDefault();
 		}
 	}
 	function touchEnd(e) {
 		if (e.touches.length > 1) return;
-		e.preventDefault();
 		
 		if (e.touches.length == 0) {
-			singleUp(true);
+			singleUp(true) || e.preventDefault();
 		} else {
-			doubleUp(false);
 			var t = e.touches[0];
-			singleDown(t.pageX-paint.canvas_pos[0], t.pageY-paint.canvas_pos[1]);
+			(doubleUp(false) +
+			 singleDown(t.pageX-paint.canvas_pos[0], t.pageY-paint.canvas_pos[1])
+			) || e.preventDefault();
 		}
+		
 		touch_numb = e.touches.length;
 	}
 	
