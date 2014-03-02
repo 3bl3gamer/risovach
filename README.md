@@ -5,9 +5,8 @@ Risovach
 
 Tool(paint):
 * events
-* modes*
-* mode (get/set)*
 * blendMode (get)*
+* cursor{img, xo, yo}*
 
 HistoryStep(paint, tool, ...):
 * capture(paint, [force_layer_id])

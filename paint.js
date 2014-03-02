@@ -109,29 +109,9 @@ function Paint(canvas, wacom_plugin) {
 				if (id == layer_id_cur) return;
 				if (tool && tool.onLayerChange) tool.onLayerChange(layer_id_cur, id);
 				
-				/*var curObj = layers[layer_id_cur].extObj;
-				var newObj = layers[id].extObj;
-				
-				if (curObj) {
-					handlersDisconnect(curObj.events);
-					if (!newObj)
-						handlersConnect(tool.events);
-				}
-				
-				if (newObj) {
-					handlersDisconnect(tool.events);
-					handlersConnect(newObj.events);
-				}*/
-				
 				layer_id_cur = id;
 			}
 	});
-	/*p.setLayerObj = function(id, obj) {
-		layers[id].extObj = obj;
-		if (layer_id_cur != id) return;
-		if (tool) handlersDisconnect(tool.events);
-		handlersConnect(obj.events);
-	}*/
 	
 	//обновляет всё (если указаны координаты, нарисуется кружок кисти)
 	p.refresh = function(mouse_x,mouse_y) {
@@ -140,22 +120,14 @@ function Paint(canvas, wacom_plugin) {
 	//обновляет прямоугольную область
 	p.refreshRegion = function(x,y,w,h,mouse_x,mouse_y) {
 		rc.clearRect(x,y,w,h);
-		//старая версия - все слои рисуются последовательно
-		/*for (var i=0;i<=this.layer_id_cur;i++)//всё, что ниже временного слоя
-			this.rc.drawImage(this.layers[i], x,y,w,h, x,y,w,h);
-			
-		this.rc.drawImage(this.buffer, x,y,w,h, x,y,w,h);//временный слой
 		
-		for (var i=this.layer_id_cur+1;i<this.layer_numb;i++)//всё, что выше временного
-			this.rc.drawImage(this.layers[i], x,y,w,h, x,y,w,h);*/
-		
-		//новая версия. т.к. хитрые режимы смешивания (типа стёрки)
+		//т.к. хитрые режимы смешивания (типа стёрки)
 		//должны влиять на один конкретный слой,
 		//сначала копируется этот самый (текущий) слой
 		rc.globalCompositeOperation = "source-over";
 		rc.drawImage(layers[layer_id_cur], x,y,w,h, x,y,w,h);
 		//поверх него рисуется временный слой с текущим режимом смешивания
-		rc.globalCompositeOperation = tool.blendMode || "source-over";
+		rc.globalCompositeOperation = (tool && tool.blendMode) || "source-over";
 		rc.drawImage(buffer, x,y,w,h, x,y,w,h);
 		//под результат "подрисовываются" все слои, которые ниже
 		rc.globalCompositeOperation = "destination-over";
@@ -166,7 +138,7 @@ function Paint(canvas, wacom_plugin) {
 		for (var i=layer_id_cur+1; i<layer_numb; i++)
 			rc.drawImage(layers[i], x,y,w,h, x,y,w,h);
 		
-		if (mouse_x!==undefined && mouse_y!==undefined) {
+		if (mouse_x!==undefined && mouse_y!==undefined && tool) {
 			var cursor = tool.cursor;
 			if (cursor)
 				rc.drawImage(cursor.img, mouse_x-cursor.xo, mouse_y-cursor.yo);
@@ -261,37 +233,38 @@ function Paint(canvas, wacom_plugin) {
 	//var nullTool = {events:[], modes:["dev-null"], mode:"dev-null"}; //заглушка, чтоб не писать везде if (tool)
 	var tools = {};//{"режим": <объект, реализующий режим>}
 	var tool = null;
-	var pushedMode = null;
+	var pushedTool = null;
 	//toolsAdd(nullTool);
 	//toolSet(nullTool.mode);
-	p.toolsAdd = function(obj) {
-		var modes = obj.modes;
-		for (var i=0; i<modes.length; i++)
-			tools[modes[i]] = obj;
+	p.toolAdd = function(name, obj) {
+		tools[name] = obj;
 	}
 	//устанавливает инструмент
-	p.toolSet = function(mode) {
-		if (!(mode in tools)) return;
-		if (tool && tool.mode == mode) return;
-		
-		if (tool) pushedMode = tool.mode;
-		var newTool = tools[mode];
-		newTool.mode = mode;
-		if (tool && tool.onToolChange) tool.onToolChange(tool, newTool);
-		if (newTool != tool) { //группа поменялась? перключаем обработчики
-			if (tool) handlersDisconnect(tool.events);
-			handlersConnect(newTool.events);
-			tool = newTool;
+	function toolSet(newTool) {
+		if (tool) {
+			pushedTool = tool;
+			if (tool.onToolChange) tool.onToolChange(tool, newTool);
+			handlersDisconnect(tool.events);
 		}
+		handlersConnect(newTool.events);
 		if (newTool.onStart) newTool.onStart();
+		tool = newTool;
+	}
+	p.toolSet = function(name) {
+		if (!(name in tools)) {
+			console.warn("No tool named <"+name+">"); //DEBUG
+			console.log(name)
+			return;
+		}
+		toolSet(tools[name]);
 	}
 	p.toolDisconnect = function() {
 		handlersDisconnect(tool.events);
 		tool = null;
 	}
 	p.toolUsePrevious = function() {
-		if (!pushedMode || pushedMode==tool.mode) return;
-		p.toolSet(pushedMode);
+		if (!pushedTool || pushedTool===tool) return;
+		toolSet(pushedTool);
 	}
 	
 	

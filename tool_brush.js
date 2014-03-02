@@ -1,4 +1,3 @@
-
 function Brush(paint/*, disableHistory*/) {
 	var b = this;
 	var canvas = paint.canvas;
@@ -24,8 +23,8 @@ function Brush(paint/*, disableHistory*/) {
 	var blurMax = 1;
 	var step = 2;
 	var stepLeft = 0; //через сколько пикселов начинать новый отрезок
-	var lastX = 0;
-	var lastY = 0;
+	var lastX = 0, lastY = 0;
+	var mouse_x = 0, mouse_y = 0;
 	var lastPressure = 1;
 	
 	var isDrawing = false; //идёт ли сейчас рисование
@@ -33,7 +32,7 @@ function Brush(paint/*, disableHistory*/) {
 	var params = []; //параметры [слой,размер,блюр,шаг,цвет,форма]
 	
 	var cursorBuffer = createBuffer(sizeMax*2+4);
-	b.cursor = {img: cursorBuffer, xo: cursorBuffer.width/2, yo: cursorBuffer.height/2};
+	var cursor = {img: cursorBuffer, xo: cursorBuffer.width/2, yo: cursorBuffer.height/2};
 	var spriteSizeStep = 2;//2->   1,2,  4,      8,    16
 	var sprite = [];       //2-> 1,1,2,4,4,8,8,8,8,...
 	//полный радиус кисти. по сути - ребро bounding box'а пополам
@@ -64,6 +63,11 @@ function Brush(paint/*, disableHistory*/) {
 			brc.strokeStyle = "black";
 			brc.lineWidth = 1;
 			brc.circle(buf.width*0.5,buf.height*0.5, size);
+			
+			paint.refreshRegionCoords(
+				mouse_x-buf.width*0.5, mouse_y-buf.height*0.5,
+				mouse_x+buf.width*0.5, mouse_y+buf.height*0.5,
+				mouse_x, mouse_y);
 		}
 	});
 	Object.defineProperty(b, "sizeSilent", {
@@ -176,6 +180,9 @@ function Brush(paint/*, disableHistory*/) {
 		lastPressure = pressure;
 	}
 	b.start = function(x,y,pressure) {
+		mouse_x = x;
+		mouse_y = y;
+		
 		if (isDrawing) return false;
 		
 		path = [x, y, pressure];
@@ -216,6 +223,9 @@ function Brush(paint/*, disableHistory*/) {
 		lastPressure = pressure;
 	}
 	b.move = function(x,y,pressure) {
+		mouse_x = x;
+		mouse_y = y;
+		
 		if (isDrawing) {
 			path.push(x,y,pressure);
 			this.simpleMove(paint.buffer.rc, x, y, pressure);
@@ -248,7 +258,7 @@ function Brush(paint/*, disableHistory*/) {
 			"step": step,
 			"color": b.color,
 			"shape": 0,
-			"mode": b.mode
+			"blendMode": blendMode
 		}
 	}
 	//восстановление параметров из массива
@@ -258,16 +268,24 @@ function Brush(paint/*, disableHistory*/) {
 		step = params.step;
 		b.color = params.color;
 		//b.shape = params.shape;
-		b.mode = params.mode;
+		blendMode = params.blendMode;
 	}
 	
-	b.modes = ["brush", "eraser"];
-	Object.defineProperty(b, "mode", {
-		get: function() {return blendMode == BLEND_MODE_ERASER ? "eraser" : "brush";},
-		set: function(new_mode) {
-			blendMode = new_mode == "eraser" ? BLEND_MODE_ERASER : BLEND_MODE_NORMAL;
-		}
-	});
+	b.asBrush = function() {
+		return {
+			onStart: function() {blendMode = BLEND_MODE_NORMAL;},
+			events: events,
+			cursor: cursor,
+		};
+	}
+	
+	b.asEraser = function() {
+		return {
+			onStart: function() {blendMode = BLEND_MODE_ERASER;},
+			events: events,
+			cursor: cursor,
+		};
+	}
 	
 	var w = paint.SimpleEventWrapper;
 	var events = {
@@ -280,93 +298,147 @@ function Brush(paint/*, disableHistory*/) {
 		'mousewheel':     [ canvas, function(e) {b.size += e.wheelDelta/120; e.preventDefault();}],
 		'DOMMouseScroll': [ canvas, function(e) {b.size -= e.detail;         e.preventDefault();}]
 	};
-	b.events = events;
+	//b.events = events;
 	b.getParams = getParams;
 	b.setParams = setParams;
 	b.getTotalRadius = getTotalRadius;
 	spriteUpdate();
 }
 
-function Picker(paint) {
-	var p = this;
-	var canvas = paint.canvas;
-	var isDrawing = false;
-	var lastColor = null;
-	function RGB3iv_to_HTMLrgb(c) {
-		return "rgb("+c[0]+","+c[1]+","+c[2]+")";
-	}
-	function RGB3iv_to_HTML7c(c) {
-		var str = "#";
-		for (var i=0; i<3; i++) str += c[i]>15 ? c[i].toString(16) : "0"+c[i].toString(16);
-		return str;
-	}
-	Object.defineProperties(p, {
-		"RGB3i": {get: function() {
-			return lastColor;
-		}},
-		"RGB3f": {get: function() {
-			return [lastColor[0]/255, lastColor[1]/255, lastColor[2]/255];
-		}},
-		"HTMLrgb": {get: function() {
-			return RGB3iv_to_HTMLrgb(lastColor);
-		}},
-		"HTML7c": {get: function() {
-			return RGB3iv_to_HTML7c(lastColor);
-		}}
-	});
-	
-	p.onColorPick = function() {log(color);} //каллбек. сработает при получении цвета пипеткой
-	p.onFinalColorPick = function() {log(color);} //каллбек. сработает при отпускании пипетки
-	function pick(x,y) {
-		var data = paint.canvas.rc.getImageData(x,y,2,2).data;
-		p.onColorPick(lastColor = [data[0],data[1],data[2],data[3]]);
-	}
-	p.start = function(x,y) {
-		if (isDrawing) return false;
-		isDrawing = true;
-		pick(x,y);
-		return true;
-	}
-	p.move = function(x,y) {
-		if (!isDrawing) return false;
-		pick(x,y);
-		return true;
-	}
-	p.end = function() {
-		if (!isDrawing) return false;
-		isDrawing = false;
-		this.onFinalColorPick(lastColor);
-		return true;
-	}
-	
-	p.modes = ["picker"];
-	p.mode = "picker";
-	
-	var w = paint.SimpleEventWrapper;
-	var events = {
-		'mousedown': [ canvas,   w.wrap(p, 0,"start","", w.COORDS | w.PRESSURE | w.PREVENT | w.UPDATE_TIME) ],
-		'mousemove': [ document, w.wrap(p, 0,"move", "", w.COORDS) ],
-		'mouseup':   [ document, w.wrap(p, 0,"end",  "") ],
-		'touchstart': [ canvas,   w.wrap(p, 1,"start","", w.COORDS | w.PRESSURE | w.PREVENT | w.UPDATE_TIME) ],
-		'touchmove':  [ document, w.wrap(p, 1,"move", "", w.COORDS) ],
-		'touchend':   [ document, w.wrap(p, 1,"end",  "") ],
-	};
-	p.events = events;
+
+
+function BrushHistoryStep(paint, brush, params, path) {
+	var s = this;
+	s.brush = brush;
+	s.region = [];//массив из getImageData
+	s.regionPos = [];//массив параметров прямоугольников в region вида [x0,y0,w0,h0, x1,y1,w1,h2, ...]
+	s.params = params;
+	s.path = path;
+	s.layer_id = paint.layer_id;
+	s.addPathAndCapture(paint.getLayerBuffer(), params, path);
 }
 
-function Merge(paint) {
-	var m = this;
-	m.mergeCurrentWith = function(layer_id) {
-		throw new Error("Not yet.");
-	}
-	m.simpleDraw = function(layer_id, upper_layer_id) {
-		var lower = paint.getLayerBuffer(layer_id);
-		var upper = paint.getLayerBuffer(upper_layer_id);
-		lower.rc.drawImage(upper, 0,0);
-	}
-	m.drawCurrentLayerOn = function(layer_id) {
-		paint.history.add(new MergeHistoryStep(paint, this, "draw", layer_id, paint.layer_id));
-		this.simpleDraw(layer_id, paint.layer_id);
-		paint.refresh();
+//возвращает площадь i-го прямоугольника
+BrushHistoryStep.prototype.getSquare = function(i) {
+	var rp = this.regionPos;
+	return rp[i+2]*rp[i+3];
+}
+
+//возвращает площать прямоугольника, который содержит оба
+//переданных прямоугольника (выбирает минимальный естественно)
+BrushHistoryStep.prototype.getMergedSquare = function(i1,i2) {
+	var l,t,r,b, rp=this.regionPos;
+	l=Math.min(rp[i1  ], rp[i2  ]);
+	t=Math.min(rp[i1+1], rp[i2+1]);
+	r=Math.max(rp[i1  ]+rp[i1+2], rp[i2  ]+rp[i2+2]);
+	b=Math.max(rp[i1+1]+rp[i1+3], rp[i2+1]+rp[i2+3]);
+	return (r-l)*(b-t);
+}
+
+//растягивает первый прямоугольник так, чтобы второй полностью был внутри 1го
+BrushHistoryStep.prototype.rectMerge = function(i1,i2) {
+	var l,t,r,b, rp=this.regionPos;
+	l=Math.min(rp[i1  ], rp[i2  ]);
+	t=Math.min(rp[i1+1], rp[i2+1]);
+
+	r=Math.max(rp[i1  ]+rp[i1+2], rp[i2  ]+rp[i2+2]);
+	b=Math.max(rp[i1+1]+rp[i1+3], rp[i2+1]+rp[i2+3]);
+	rp[i1  ]=l;
+	rp[i1+1]=t;
+	rp[i1+2]=r-l;
+	rp[i1+3]=b-t;
+}
+
+//добавление участка (буфер, размеры области)
+BrushHistoryStep.prototype.rectAdd = function(buf,left,top,right,bottom) {
+	if (left < 0) left = 0;
+	if (top < 0) top = 0;
+	if (right > buf.width) right = buf.width;
+	if (bottom > buf.height) bottom = buf.height;
+	if (left >= right || top >= bottom) return; //за пределами канваса или пустой
+	
+	var w = right-left, h = bottom-top;
+	var rp = this.regionPos;
+	rp.push(left,top,w,h);
+	
+	//*-----*    *-------*
+	//|  A  |    |       |
+	//|   *---*  |  C - -|
+	//*---| B |  |   |   |
+	//    *---*  *-------*
+	//если площадь A+B>C, выгоднее прямоугольники A и B заменить на один C. это и делается
+	for (var i=4; i<rp.length; i+=4) {
+		if (rp[i] === undefined) {console.error("Tried to access undefined rect."); break;} //DEBUG
+		for (var j=0;j<i;j+=4) {
+			if (rp[j] === undefined) {console.error("Tried to access undefined rect."); break;} //DEBUG
+			var t1 = this.getSquare(i)+this.getSquare(j);
+			var t2 = this.getMergedSquare(i,j);
+			if (t1 > t2) {
+				this.rectMerge(i,j);
+				rp.splice(j,4);
+				i -= 4;
+				j -= 4;
+			}
+		}
 	}
 }
+
+//расчитывает, какими прямоугольниками покрыть весь штрих, сохраняет
+BrushHistoryStep.prototype.addPathAndCapture = function(buf, params, path) {
+	if (path.length == 0) {console.error("tried to add empty path to BHS"); return;} //DEBUG
+	var r = this.brush.getTotalRadius(params.size, params.blur);
+	
+	var left=path[0], top=path[1], right=path[0], bottom=path[1];
+	for (var i=3; i<path.length; i+=3) {
+		var x=path[i], y=path[i+1];
+		if (left > x) left = x;
+		if (right < x) right = x;
+		if (top > y) top = y;
+		if (bottom < y) bottom = y;
+		var square = (right-left)*(bottom-top);
+		if (i < path.length-3 && square > 64*64) {
+			this.rectAdd(buf, left-r, top-r, right+r, bottom+r);
+			left = path[i];  top = path[i+1];
+			right = path[i]; bottom = path[i+1];
+		}
+	}
+	this.rectAdd(buf, left-r, top-r, right+r, bottom+r);
+	this.capture(paint);
+}
+
+//проход по массиву прямоугольников, копирование пикселов
+BrushHistoryStep.prototype.capture = function(paint, forceLayer) {
+	if (forceLayer !== undefined) this.layer_id = forceLayer;
+	this.region = [];
+	var buf = paint.getLayerBuffer(this.layer_id);
+	var rc=buf.rc, rp=this.regionPos;
+	for (var i=0; i<rp.length; i+=4) {
+		this.region.push(rc.getImageData(rp[i],rp[i+1],rp[i+2],rp[i+3]));
+		//rc.strokeRect(rp[i],rp[i+1],rp[i+2],rp[i+3]);
+	}
+}
+
+//восстановление пикселов
+BrushHistoryStep.prototype.undo = function(paint) {
+	var buf = paint.getLayerBuffer(this.layer_id);
+	var rc=buf.rc, rp=this.regionPos;
+	for (var i=0; i<this.region.length; i++) {
+		rc.putImageData(this.region[i],rp[i*4],rp[i*4+1]);
+	}
+}
+
+//повторение
+BrushHistoryStep.prototype.redo = function(paint) {
+	var brush = this.brush;
+	var path = this.path;
+	var params = brush.getParams();
+	var buf = paint.getLayerBuffer(this.layer_id);
+	brush.setParams(this.params);
+	buf.rc.globalCompositeOperation = brush.blendMode;
+	brush.simpleStart(buf.rc, path[0], path[1], path[2]);
+	for (var i=3; i<path.length; i+=3)
+		brush.simpleMove(buf.rc, path[i], path[i+1], path[i+2]);
+	buf.rc.globalCompositeOperation = "source-over";
+	brush.setParams(params);
+}
+

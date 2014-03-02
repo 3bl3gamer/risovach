@@ -4,10 +4,11 @@
 <script src="color_picker_2.0/color_picker.js"></script>
 <script src="util.js"></script>
 <script src="history.js"></script>
-<script src="image_transformer.js"></script>
 <script src="paint.js"></script>
-<script src="paint_tools.js"></script>
-<script src="paint_tools_history_handlers.js"></script>
+<script src="tool_brush.js"></script>
+<script src="tool_picker.js"></script>
+<script src="tool_merge.js"></script>
+<script src="tool_image_transformer.js"></script>
 
 
 <script>
@@ -53,10 +54,11 @@ window.onload = function() {
 	
 	var brush = new Brush(paint);
 	brush.size = 5;
-	paint.toolsAdd(brush);
+	paint.toolAdd("brush", brush.asBrush());
+	paint.toolAdd("eraser", brush.asEraser());
 	
 	var picker = new Picker(paint);
-	paint.toolsAdd(picker);
+	paint.toolAdd("picker", picker);
 	
 	merge = new Merge(paint);
 	paint.toolSet("brush");
@@ -64,7 +66,7 @@ window.onload = function() {
 	//http://www.raspberrypi.org/wp-content/uploads/2011/11/h1ji3-pi-black.jpg
 	var img_transf = new ImageTransformer(paint);
 	img_transf.setImage(img_for_paint_first_layer);
-	paint.toolsAdd(img_transf);
+	paint.toolAdd("image-transform", img_transf);
 	paint.toolSet("image-transform");
 	
 	//создание кнопок
