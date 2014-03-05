@@ -106,18 +106,17 @@ function ImageTransformer(paint) {
 	//grab_dir - разность направления тач0-тач1 и поворота спрайта
 	//grab_xscale, grab_yscale - трансформация по осям относительно расстояния между тачами
 	var grab_dir=NaN, grab_xscale=NaN, grab_yscale=NaN;
-	var sprite_p, min_dis, min_i;
+	var sprite_p, min_dis, min_i=-1;
 	
 	function updateSpritePoints(x,y) {
 		if (x === undefined || y === undefined) return;
 		var p = sprite_p || sprite.getPoints();
-		min_dis = Infinity;
+		min_dis = 8;
+		min_i = -1;
 		for (var i=0; i<4; i++) {
 			var dis = point_distance(x,y,p[i][0],p[i][1]);
 			if (dis < min_dis) {min_dis=dis; min_i=i}
 		}
-		//if (grab_i != -1) rc.circleStroke(p[grab_i][0],p[grab_i][1], 8);
-		//else if (min_dis<8) rc.circleStroke(p[min_i][0],p[min_i][1], 8);
 	}
 	
 	function drawWithFrame() {
@@ -134,12 +133,15 @@ function ImageTransformer(paint) {
 		for (var i=0; i<4; i++)
 			rc.lineTo(p[i][0],p[i][1]);
 		rc.stroke();
+		
+		if (grab_i != -1) rc.circleStroke(p[grab_i][0],p[grab_i][1], 8);
+		else if (min_i != -1) rc.circleStroke(p[min_i][0],p[min_i][1], 8);
 	}
 	
 	
 	function singleDown(x,y) {
 		updateSpritePoints(x,y);
-		if (min_dis < 8) { //ткнули в точку
+		if (min_i != -1) { //ткнули в точку
 			grab_x = x - sprite_p[min_i][0];
 			grab_y = y - sprite_p[min_i][1];
 			grab_i = min_i;
@@ -147,12 +149,12 @@ function ImageTransformer(paint) {
 			grab_x = x - sprite.x;
 			grab_y = y - sprite.y;
 		}
-		prev_state = getState();
+		if (!prev_state) prev_state = getState();
 		drawWithFrame();
 		paint.refresh();
 	}
 	function singleMove(x,y) {
-		if (grab_x != grab_x) return true;
+		var prev_min_i = min_i;
 		updateSpritePoints(x,y);
 		if (grab_i != -1) { //перетаскивается точка
 			var rpx=x-grab_x-sprite.x, rpy=y-grab_y-sprite.y;
@@ -163,6 +165,9 @@ function ImageTransformer(paint) {
 		if (grab_x == grab_x) { //перетаскивается вся картинка
 			sprite.x = x - grab_x;
 			sprite.y = y - grab_y;
+		} else
+		if (prev_min_i == min_i) { //не нужно перерисовыватть обведённую точку
+			return true;
 		}
 		drawWithFrame();
 		paint.refresh();
@@ -171,6 +176,7 @@ function ImageTransformer(paint) {
 		if (grab_x != grab_x) return true;
 		if (with_history) {
 			paint.history.add(new ImageTransformerChange_HistoryStep(paint, transf, prev_state, getState()));
+			prev_state = null;
 		}
 		grab_i = -1;
 		grab_x = grab_y = NaN;
@@ -183,7 +189,7 @@ function ImageTransformer(paint) {
 		grab_dir = Math.atan2(y1-y0, x1-x0) - sprite.rotation;
 		grab_xscale = sprite.xscale / point_distance(x0,y0,x1,y1);
 		grab_yscale = sprite.yscale / point_distance(x0,y0,x1,y1);
-		prev_state = getState();
+		if (!prev_state) prev_state = getState();
 	}
 	function doubleMove(x0,y0, x1,y1) {
 		if (grab_x != grab_x) return true;

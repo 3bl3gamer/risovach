@@ -63,7 +63,13 @@ window.onload = function() {
 	var rc = canvas.getContext("2d");
 	paint = new Paint(canvas, {
 		wacom_plugin: wtPlugin, //я забыл, как его подключать...
-		layer_numb: 3 //R U HAPPY NOW?
+		layer_numb: 3, //R U HAPPY NOW?
+		onLayerChange: function(old_id, cur_id) {
+			var old = buttons.children[buttons.children.length-1-old_id];
+			var cur = buttons.children[buttons.children.length-1-cur_id];
+			old.classList.remove("selected");
+			cur.classList.add("selected");
+		}
 	});
 	
 	var brush = new Brush(paint);
@@ -82,21 +88,19 @@ window.onload = function() {
 	img_transf.setImage(img_for_paint_first_layer);
 	paint.toolAdd("image-transform", img_transf);
 	paint.toolSet("image-transform");
+	//убирает первый шаг истории, в данном случае - появление трансформера, т.е. делает его неубираемым
+	paint.history.unshift();
 	
 	//создание кнопок
 	paint.forEachLayer(function(id, buf) {
 		var b = document.createElement('button');
-		b.className = "layer_preview";
 		//вообще, так как-то криво. зато просто и работает
+		b.classList.add("layer_preview");
+		if (id == paint.layer_id) b.classList.add("selected");
 		buf.style.width  = "128px";
 		buf.style.height = "64px";
 		b.appendChild(buf);
-		b.onclick = function() {
-			var cur = buttons.children[buttons.children.length-1-paint.layer_id]; 
-			cur.classList.remove("selected");
-			this.classList.add("selected");
-			paint.layer_id = id;
-		};
+		b.onclick = function() { paint.layer_id = id; };
 		b.style.display = "block";
 		buttons.insertBefore(b, buttons.firstChild);
 	});

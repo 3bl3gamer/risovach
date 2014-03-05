@@ -15,6 +15,12 @@
 		this.historyLen++;
 	};
 	
+	h.unshift = function() {
+		if (this.historyLen === 0) return;
+		this.historyLen--;
+		this.step.unshift();
+	};
+	
 	//получает массив слоёв, выбирает нужный,
 	//восстанавливает участки в него
 	h.undo = function() {console.log(this.step)

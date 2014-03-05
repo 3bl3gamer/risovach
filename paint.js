@@ -5,6 +5,7 @@
 //TODO: вынести цветоманипуляции в отдельный файл (а м.б. и нет)
 //TODO: разобраться с onToolChange, onLayerChange, onStart и т.д. (мб их наследовать от прототипа)
 //TODO: canvas_pos x y
+//TODO: разобраться со всякими disconnect и слушателями хоткеев (последние вынести наружу)
 
 
 function toRange(a, x, b) {
@@ -60,7 +61,7 @@ function Rect() {
 
 
 //создаёт объект рисовальщика, завязан на canvas'е
-function Paint(canvas, params) {
+function Paint(canvas, opts) {
 	var p = this;
 	var rc = canvas.getContext("2d");
 	canvas.rc = rc;
@@ -76,7 +77,7 @@ function Paint(canvas, params) {
 	
 	//ищем апишечку Bamboo'шечки
 	var penAPI;
-	if (params.wacom_plugin && (penAPI = params.wacom_plugin.penAPI)) //нашли
+	if (opts.wacom_plugin && (penAPI = opts.wacom_plugin.penAPI)) //нашли
 		p.getPressure = function() {if (penAPI.pointerType!=0) return penAPI.pressure; else return 1.0;}
 	else //не нашли
 		p.getPressure = function() {return Math.pow(Math.min(1, (new Date().getTime()-p.event_start_time)/100), 0.5)+0.05;}
@@ -84,7 +85,7 @@ function Paint(canvas, params) {
 	
 	//параметры и методы слоёв
 	var layers = []; //массив слоёв (объектов canvas)
-	var layer_numb = params.layer_numb || 4; //количество слоёв
+	var layer_numb = opts.layer_numb || 4; //количество слоёв
 	for (var i=0;i<layer_numb;i++) //каждому слою по буфферу
 		layers.push(createBuffer(width, height));
 	var layer_id_cur = 0; //текущий
@@ -108,6 +109,7 @@ function Paint(canvas, params) {
 				id = toRange(0, id, layer_numb-1);
 				if (id == layer_id_cur) return;
 				if (tool && tool.onLayerChange) tool.onLayerChange(layer_id_cur, id);
+				if (opts.onLayerChange) opts.onLayerChange(layer_id_cur, id);
 				
 				layer_id_cur = id;
 			}
@@ -226,9 +228,6 @@ function Paint(canvas, params) {
 	}
 	
 	
-	//TODO: большое: вынести кисточку и пипетку в отдельные объекты
-	//      todoing...
-	//      todoing.....
 	//тулзы
 	//var nullTool = {events:[], modes:["dev-null"], mode:"dev-null"}; //заглушка, чтоб не писать везде if (tool)
 	var tools = {};//{"режим": <объект, реализующий режим>}
@@ -307,13 +306,7 @@ function Paint(canvas, params) {
 		document.removeEventListener('keyup', p.kbdEvent, false);
 	}
 	
-	
 	p.history = new History(p);
-//	p.historyAdd = function(step) {
-//		step.layer_id = layer_id_cur;
-//		step.capture(this.getLayerBuffer());
-//		this.history.add(step);
-//	}
 	p.applyBuffer = function() {
 		var lrc = this.getLayerBuffer().rc;
 		if (tool.blendMode)
@@ -323,6 +316,5 @@ function Paint(canvas, params) {
 		this.buffer.rc.clearRect(0,0,buffer.width,buffer.height);
 	}
 	
-	p.layer_id = 0;
 	p.connect();
 }
