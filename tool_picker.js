@@ -26,8 +26,8 @@ function Picker(paint) {
 		}}
 	});
 	
-	p.onColorPick = function() {log(color);} //каллбек. сработает при получении цвета пипеткой
-	p.onFinalColorPick = function() {log(color);} //каллбек. сработает при отпускании пипетки
+	p.onColorPick = function(color){ console.log(color) } //каллбек. сработает при получении цвета пипеткой
+	p.onFinalColorPick = function(color){ console.log(color) } //каллбек. сработает при отпускании пипетки
 	function pick(x,y) {
 		var data = paint.canvas.rc.getImageData(x,y,2,2).data;
 		p.onColorPick(lastColor = [data[0],data[1],data[2],data[3]]);

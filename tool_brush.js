@@ -43,7 +43,7 @@ function Brush(paint) {
 	
 	Object.defineProperty(b, "blur", {
 		get: function() {return blur;},
-		set: function(v) {blur = toRange(0, v, blurMax);}
+		set: function(v) {blur = toRange(0, v, blurMax); spriteUpdate();}
 	});
 	
 	Object.defineProperty(b, "size", {
@@ -70,8 +70,12 @@ function Brush(paint) {
 				mouse_x, mouse_y);
 		}
 	});
-	Object.defineProperty(b, "sizeSilent", {
+	/*Object.defineProperty(b, "sizeSilent", {
 		set: function(v) {size = toRange(1, v, sizeMax);}
+	});*/
+	Object.defineProperty(b, "step", {
+		get: function() {return step;},
+		set: function(v) {step = v;}
 	});
 	
 	var BLEND_MODE_NORMAL = "source-over";
@@ -108,8 +112,8 @@ function Brush(paint) {
 		
 		while (size>0.99) {
 			var cdx = getTotalRadius(size);
-			var cbuf = createBuffer((cdx*2)<<0);
-			cbuf.rc.drawImage(buf, 0,0, cdx*2,cdx*2);
+			var cbuf = createBuffer(2+((cdx*2)<<0));
+			cbuf.rc.drawImage(buf, 1,1, cdx*2,cdx*2);
 			cbuf.cur_width = cdx*2; //ширина для текущего содержимого
 			cbuf.cur_size = size; //радиус текущего содержимого
 			buf = cbuf;
@@ -122,10 +126,10 @@ function Brush(paint) {
 		sprite[0] = sprite[1] = sprite[2];
 		for (var i=0; i<=sizeMax; i++) {
 			if (sprite[i]) document.body.appendChild(sprite[i]);
-			log(i+": "+(sprite[i] ? sprite[i].cur_size : -1));
+			console.log(i+": "+(sprite[i] ? sprite[i].cur_size : -1));
 		}
 		
-		log("Sprite updated");
+		console.log("Sprite updated");
 	}
 	
 	//рисует точку спрайтом
@@ -304,6 +308,8 @@ function Brush(paint) {
 	b.getParams = getParams;
 	b.setParams = setParams;
 	b.getTotalRadius = getTotalRadius;
+	b.drawDot = drawDot;
+	b.drawLine = drawLine;
 	spriteUpdate();
 }
 

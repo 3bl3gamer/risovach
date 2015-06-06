@@ -267,6 +267,16 @@ function Paint(canvas, opts) {
 	}
 	
 	
+	p.history = new History(p);
+	p.applyBuffer = function() {
+		var lrc = this.getLayerBuffer().rc;
+		if (tool.blendMode)
+			lrc.globalCompositeOperation = tool.blendMode;
+		lrc.drawImage(buffer,0,0);//TODO: draw only changed
+		lrc.globalCompositeOperation = "source-over";
+		this.buffer.rc.clearRect(0,0,buffer.width,buffer.height);
+	}
+	
 	p.undo = function() {
 		this.history.undo();
 		this.refresh(); //TODO: only updated
@@ -279,41 +289,37 @@ function Paint(canvas, opts) {
 		while (this.history.redo(forceLayer)) {};
 		this.refresh();
 	}
+	p.canRedo = function() {
+		return this.history.canRedo();
+	}
+	p.history.onStateUpdate = function(eventName) {
+		if (p.onHistoryStateUpdate) p.onHistoryStateUpdate(eventName);
+	}
 	
 	
 	p.kbdEvent = function(e) {
 		switch (e.keyCode) {
 		case 90: //'Z'
-			p.undo();
-			e.preventDefault();
+			// p.undo();
+			// e.preventDefault();
 			break;
 		case 89: //'Y'
-			p.redo();
-			e.preventDefault();
+			// p.redo();
+			// e.preventDefault();
 			break;
 		default:
-			if (e.keyCode>=48 && e.keyCode<=57) { //'0' - '9'
-				p.brushSetAlpha((e.keyCode-47)*0.1);
-				e.preventDefault();
-			}
+			// if (e.keyCode>=48 && e.keyCode<=57) { //'0' - '9'
+			// 	p.brushSetAlpha((e.keyCode-47)*0.1);
+			// 	e.preventDefault();
+			// }
 		}
 	}
 	p.connect = function() {
-		document.addEventListener('keyup', p.kbdEvent, false);
+		//document.addEventListener('keyup', p.kbdEvent, false);
 	}
 	p.disconnect = function() {
 		p.toolDisconnect();
-		document.removeEventListener('keyup', p.kbdEvent, false);
-	}
-	
-	p.history = new History(p);
-	p.applyBuffer = function() {
-		var lrc = this.getLayerBuffer().rc;
-		if (tool.blendMode)
-			lrc.globalCompositeOperation = tool.blendMode;
-		lrc.drawImage(buffer,0,0);//TODO: draw only changed
-		lrc.globalCompositeOperation = "source-over";
-		this.buffer.rc.clearRect(0,0,buffer.width,buffer.height);
+		//document.removeEventListener('keyup', p.kbdEvent, false);
 	}
 	
 	p.connect();

@@ -89,7 +89,7 @@ window.onload = function() {
 	paint.toolAdd("image-transform", img_transf);
 	paint.toolSet("image-transform");
 	//убирает первый шаг истории, в данном случае - появление трансформера, т.е. делает его неубираемым
-	paint.history.unshift();
+	paint.history.shift();
 	
 	//создание кнопок
 	paint.forEachLayer(function(id, buf) {

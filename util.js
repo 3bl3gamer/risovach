@@ -7,15 +7,15 @@ function getPos(obj) {
 		} while (obj = obj.offsetParent);
 	return [curleft,curtop];
 }
-function getPosScroll(obj) {
-	var curleft = 0, curtop = 0;
-	if (obj.offsetParent)
-		do {
-			curleft += obj.offsetLeft;
-			curtop += obj.offsetTop;
-		} while (obj = obj.offsetParent);
-	return [curleft-document.body.scrollLeft, curtop-document.body.scrollTop];
-}
+// function getPosScroll(obj) {
+// 	var curleft = 0, curtop = 0;
+// 	if (obj.offsetParent)
+// 		do {
+// 			curleft += obj.offsetLeft;
+// 			curtop += obj.offsetTop;
+// 		} while (obj = obj.offsetParent);
+// 	return [curleft-document.body.scrollLeft, curtop-document.body.scrollTop];
+// }
 
 function HTML7s_to_RGB3i(str) {
 	var rgb = [];
@@ -35,6 +35,14 @@ CanvasRenderingContext2D.prototype.line = function(x0,y0,x1,y1) {
 	this.lineTo(x1,y1);
 	this.stroke();
 }
+//ломаная между произвольным кол-вом точек
+CanvasRenderingContext2D.prototype.lines = function(/*x0,y0, x1,y2, x2,y2, ...*/) {
+	this.beginPath();
+	this.moveTo(arguments[0], arguments[1]);
+	for (var i=2; i<arguments.length; i+=2)
+		this.lineTo(arguments[i], arguments[i+1]);
+	this.stroke();
+}
 //просто круг с координатами и радиусом
 CanvasRenderingContext2D.prototype.circleStroke =
 CanvasRenderingContext2D.prototype.circle = function(x,y,r) {
@@ -47,6 +55,22 @@ CanvasRenderingContext2D.prototype.circleFill = function(x,y,r) {
 	this.arc(x,y, r, 0,3.1415927*2, false);
 	this.fill();
 }
+CanvasRenderingContext2D.prototype.circleFillAndStroke = function(x,y,r) {
+	this.beginPath();
+	this.arc(x,y, r, 0,3.1415927*2, false);
+	this.fill();
+	this.stroke();
+}
 CanvasRenderingContext2D.prototype.clear = function() {
 	this.clearRect(0, 0,this.canvas.width, this.canvas.height);
+}
+HTMLCanvasElement.prototype.autoresize = function(scale) {
+	if (scale === undefined) scale = devicePixelRatio;
+	var w = this.offsetWidth * scale;
+	var h = this.offsetHeight * scale;
+	if (this.width != w || this.height != h) {
+		this.width = w;
+		this.height = h;
+	}
+	if (scale != 1) this.getContext('2d').scale(scale, scale);
 }
