@@ -125,7 +125,7 @@ function Brush(paint) {
 		}
 		sprite[0] = sprite[1] = sprite[2];
 		for (var i=0; i<=sizeMax; i++) {
-			if (sprite[i]) document.body.appendChild(sprite[i]);
+			//if (sprite[i]) document.body.appendChild(sprite[i]);
 			console.log(i+": "+(sprite[i] ? sprite[i].cur_size : -1));
 		}
 		
